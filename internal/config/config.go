@@ -9,7 +9,7 @@ import (
 type Config struct {
 	Port              string
 	JWTSecret         string
-	DataFilePath      string
+	DataFilePath      string`r`n	DatabaseURL       string
 	AccessTTL         time.Duration
 	RefreshTTL        time.Duration
 	CookieSecure      bool
@@ -20,7 +20,7 @@ func Load() Config {
 	return Config{
 		Port:              getenv("PORT", "8080"),
 		JWTSecret:         getenv("JWT_SECRET", "change-this-secret"),
-		DataFilePath:      getenv("DATA_FILE", "./data.json"),
+		DataFilePath:      getenv("DATA_FILE", "./data.json"),`r`n		DatabaseURL:       os.Getenv("DATABASE_URL"),
 		AccessTTL:         time.Duration(getenvInt("ACCESS_TTL_MIN", 15)) * time.Minute,
 		RefreshTTL:        time.Duration(getenvInt("REFRESH_TTL_HOURS", 24)) * time.Hour,
 		CookieSecure:      getenv("COOKIE_SECURE", "false") == "true",
