@@ -6,7 +6,7 @@ import (
 	"backend-of/internal/repository/jsondb"
 	"backend-of/internal/service"
 	httptransport "backend-of/internal/transport/http"
-	"log"
+	"context"`r`n	"log"
 )
 
 func main() {
@@ -18,7 +18,7 @@ func main() {
 	}
 
 	authSvc := service.NewAuthService(store, auth.NewTokenManager(cfg.JWTSecret), cfg.AccessTTL, cfg.RefreshTTL)
-	if err := authSvc.Seed(nil); err != nil {
+	if err := authSvc.Seed(context.Background()); err != nil {
 		log.Fatalf("error seeding users: %v", err)
 	}
 
