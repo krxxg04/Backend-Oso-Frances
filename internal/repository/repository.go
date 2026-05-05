@@ -8,6 +8,7 @@ import (
 
 type UserRepository interface {
 	GetByUsername(ctx context.Context, username string) (domain.User, bool, error)
+	CreateUser(ctx context.Context, user domain.User) error
 	SeedIfEmpty(ctx context.Context, users []domain.User) error
 }
 

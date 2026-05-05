@@ -6,6 +6,7 @@ import (
 	"backend-of/internal/repository"
 	"context"
 	"errors"
+	"strings"
 	"time"
 
 	"golang.org/x/crypto/bcrypt"
@@ -47,6 +48,39 @@ func (s *AuthService) Login(ctx context.Context, username, password string) (str
 		return "", "", err
 	}
 	ref, err := s.tokens.Sign(u.Username, "refresh", time.Now().Add(s.refreshTTL))
+	if err != nil {
+		return "", "", err
+	}
+	return acc, ref, nil
+}
+
+func (s *AuthService) Register(ctx context.Context, username, password string) (string, string, error) {
+	username = strings.TrimSpace(username)
+	if len(username) < 3 || len(password) < 6 {
+		return "", "", errors.New("validation_error")
+	}
+	if strings.Contains(username, " ") {
+		return "", "", errors.New("validation_error")
+	}
+	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return "", "", err
+	}
+	if err := s.users.CreateUser(ctx, domain.User{
+		Username:     username,
+		PasswordHash: string(hash),
+		Role:         "user",
+	}); err != nil {
+		if err.Error() == "user_exists" {
+			return "", "", errors.New("conflict")
+		}
+		return "", "", err
+	}
+	acc, err := s.tokens.Sign(username, "access", time.Now().Add(s.accessTTL))
+	if err != nil {
+		return "", "", err
+	}
+	ref, err := s.tokens.Sign(username, "refresh", time.Now().Add(s.refreshTTL))
 	if err != nil {
 		return "", "", err
 	}

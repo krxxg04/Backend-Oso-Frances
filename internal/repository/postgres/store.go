@@ -89,6 +89,18 @@ func (s *Store) SeedIfEmpty(ctx context.Context, users []domain.User) error {
 	return nil
 }
 
+func (s *Store) CreateUser(ctx context.Context, user domain.User) error {
+	_, exists, err := s.GetByUsername(ctx, user.Username)
+	if err != nil {
+		return err
+	}
+	if exists {
+		return fmt.Errorf("user_exists")
+	}
+	_, err = s.pool.Exec(ctx, `insert into users (username, password_hash, role) values ($1,$2,$3)`, user.Username, user.PasswordHash, user.Role)
+	return err
+}
+
 func (s *Store) GetByUsername(ctx context.Context, username string) (domain.User, bool, error) {
 	var u domain.User
 	err := s.pool.QueryRow(ctx, `select username, password_hash, role from users where username=$1`, username).Scan(&u.Username, &u.PasswordHash, &u.Role)

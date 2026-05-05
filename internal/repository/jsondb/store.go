@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"os"
 	"sort"
 	"strconv"
@@ -84,6 +85,16 @@ func (s *Store) SeedIfEmpty(_ context.Context, users []domain.User) error {
 	return s.persistLocked()
 }
 
+func (s *Store) CreateUser(_ context.Context, user domain.User) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if _, exists := s.data.Users[user.Username]; exists {
+		return fmt.Errorf("user_exists")
+	}
+	s.data.Users[user.Username] = user
+	return s.persistLocked()
+}
+
 func (s *Store) GetByUsername(_ context.Context, username string) (domain.User, bool, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -151,3 +162,4 @@ func (s *Store) ListByClienteID(_ context.Context, clienteID string) ([]domain.S
 	sort.Slice(out, func(i, j int) bool { return out[i].CreadoEn.After(out[j].CreadoEn) })
 	return out, nil
 }
+

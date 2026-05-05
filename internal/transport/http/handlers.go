@@ -26,6 +26,11 @@ type loginReq struct {
 	Password string `json:"password" binding:"required"`
 }
 
+type registerReq struct {
+	Username string `json:"username" binding:"required"`
+	Password string `json:"password" binding:"required"`
+}
+
 func (h *Handler) Login(c *gin.Context) {
 	if !h.limiter.Allow(c.ClientIP()) {
 		c.JSON(http.StatusTooManyRequests, domain.ErrorResponse{Error: domain.NewError("rate_limited", "demasiados intentos de login", "")})
@@ -43,6 +48,28 @@ func (h *Handler) Login(c *gin.Context) {
 	}
 	h.setAuthCookies(c, acc, ref)
 	c.JSON(http.StatusOK, gin.H{"user": gin.H{"username": req.Username}})
+}
+
+func (h *Handler) Register(c *gin.Context) {
+	var req registerReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, domain.ErrorResponse{Error: domain.NewError("validation_error", "username y password son requeridos", "")})
+		return
+	}
+	acc, ref, err := h.authSvc.Register(c, req.Username, req.Password)
+	if err != nil {
+		switch err.Error() {
+		case "validation_error":
+			c.JSON(http.StatusBadRequest, domain.ErrorResponse{Error: domain.NewError("validation_error", "username minimo 3 chars, sin espacios; password minimo 6 chars", "")})
+		case "conflict":
+			c.JSON(http.StatusConflict, domain.ErrorResponse{Error: domain.NewError("conflict", "el username ya existe", "username")})
+		default:
+			c.JSON(http.StatusInternalServerError, domain.ErrorResponse{Error: domain.NewError("internal_error", "error registrando usuario", "")})
+		}
+		return
+	}
+	h.setAuthCookies(c, acc, ref)
+	c.JSON(http.StatusCreated, gin.H{"user": gin.H{"username": req.Username}})
 }
 
 func (h *Handler) Logout(c *gin.Context) {
