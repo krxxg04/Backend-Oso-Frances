@@ -14,6 +14,7 @@ func NewRouter(cfg config.Config, authSvc *service.AuthService, simSvc *service.
 
 	api := r.Group("/api/v1")
 	authGroup := api.Group("/auth")
+	authGroup.POST("/register", h.Register)
 	authGroup.POST("/login", h.Login)
 	authGroup.POST("/logout", h.Logout)
 	authGroup.POST("/refresh", h.Refresh)

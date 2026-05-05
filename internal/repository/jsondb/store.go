@@ -162,4 +162,3 @@ func (s *Store) ListByClienteID(_ context.Context, clienteID string) ([]domain.S
 	sort.Slice(out, func(i, j int) bool { return out[i].CreadoEn.After(out[j].CreadoEn) })
 	return out, nil
 }
-
