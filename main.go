@@ -21,6 +21,7 @@ func main() {
 	var simSvc *service.SimulationService
 
 	if cfg.DatabaseURL != "" {
+		log.Println("storage mode: PostgreSQL (DATABASE_URL)")
 		store, err := postgres.NewStore(ctx, cfg.DatabaseURL)
 		if err != nil {
 			log.Fatalf("error connecting postgres: %v", err)
@@ -29,6 +30,7 @@ func main() {
 		authSvc = service.NewAuthService(store, tokens, cfg.AccessTTL, cfg.RefreshTTL)
 		simSvc = service.NewSimulationService(store, store)
 	} else {
+		log.Printf("storage mode: JSON local (%s)", cfg.DataFilePath)
 		store, err := jsondb.NewStore(cfg.DataFilePath)
 		if err != nil {
 			log.Fatalf("error opening data store: %v", err)
@@ -42,6 +44,7 @@ func main() {
 	}
 
 	r := httptransport.NewRouter(cfg, authSvc, simSvc)
+	log.Printf("server starting on :%s", cfg.Port)
 
 	if err := r.Run(":" + cfg.Port); err != nil {
 		log.Fatalf("server stopped: %v", err)

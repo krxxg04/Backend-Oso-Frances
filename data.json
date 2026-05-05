@@ -1,0 +1,16 @@
+{
+  "users": {
+    "admin": {
+      "username": "admin",
+      "role": "admin"
+    },
+    "user": {
+      "username": "user",
+      "role": "user"
+    }
+  },
+  "clientes": {},
+  "clientesByKey": {},
+  "simulaciones": {},
+  "seq": 0
+}
