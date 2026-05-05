@@ -7,23 +7,23 @@ import (
 )
 
 type Config struct {
-	Port            string
-	JWTSecret       string
-	DataFilePath    string
-	AccessTTL       time.Duration
-	RefreshTTL      time.Duration
-	CookieSecure    bool
+	Port              string
+	JWTSecret         string
+	DataFilePath      string
+	AccessTTL         time.Duration
+	RefreshTTL        time.Duration
+	CookieSecure      bool
 	LoginMaxPerMinute int
 }
 
 func Load() Config {
 	return Config{
-		Port:             getenv("PORT", "8080"),
-		JWTSecret:        getenv("JWT_SECRET", "change-this-secret"),
-		DataFilePath:     getenv("DATA_FILE", "./data.json"),
-		AccessTTL:        time.Duration(getenvInt("ACCESS_TTL_MIN", 15)) * time.Minute,
-		RefreshTTL:       time.Duration(getenvInt("REFRESH_TTL_HOURS", 24)) * time.Hour,
-		CookieSecure:     getenv("COOKIE_SECURE", "false") == "true",
+		Port:              getenv("PORT", "8080"),
+		JWTSecret:         getenv("JWT_SECRET", "change-this-secret"),
+		DataFilePath:      getenv("DATA_FILE", "./data.json"),
+		AccessTTL:         time.Duration(getenvInt("ACCESS_TTL_MIN", 15)) * time.Minute,
+		RefreshTTL:        time.Duration(getenvInt("REFRESH_TTL_HOURS", 24)) * time.Hour,
+		CookieSecure:      getenv("COOKIE_SECURE", "false") == "true",
 		LoginMaxPerMinute: getenvInt("LOGIN_MAX_PER_MIN", 10),
 	}
 }

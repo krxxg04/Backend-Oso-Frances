@@ -7,17 +7,18 @@ import (
 	"encoding/json"
 	"errors"
 	"os"
-	"sort"`r`n	"strconv"
+	"sort"
+	"strconv"
 	"sync"
 	"time"
 )
 
 type dbData struct {
-	Users       map[string]domain.User       `json:"users"`
-	Clientes    map[string]domain.Cliente    `json:"clientes"`
-	ClientesByKey map[string]string          `json:"clientesByKey"`
-	Simulaciones map[string]domain.Simulacion `json:"simulaciones"`
-	Seq         int64                        `json:"seq"`
+	Users         map[string]domain.User       `json:"users"`
+	Clientes      map[string]domain.Cliente    `json:"clientes"`
+	ClientesByKey map[string]string            `json:"clientesByKey"`
+	Simulaciones  map[string]domain.Simulacion `json:"simulaciones"`
+	Seq           int64                        `json:"seq"`
 }
 
 type Store struct {
@@ -39,10 +40,10 @@ func (s *Store) load() error {
 	defer s.mu.Unlock()
 
 	s.data = dbData{
-		Users: make(map[string]domain.User),
-		Clientes: make(map[string]domain.Cliente),
+		Users:         make(map[string]domain.User),
+		Clientes:      make(map[string]domain.Cliente),
 		ClientesByKey: make(map[string]string),
-		Simulaciones: make(map[string]domain.Simulacion),
+		Simulaciones:  make(map[string]domain.Simulacion),
 	}
 
 	b, err := os.ReadFile(s.path)
@@ -68,11 +69,7 @@ func (s *Store) persistLocked() error {
 
 func (s *Store) nextID(prefix string) string {
 	s.data.Seq++
-	return prefix + "_" + time.Now().UTC().Format("20060102150405") + "_" + itoa(s.data.Seq)
-}
-
-func itoa(v int64) string {
-	return json.Number(string(rune(0))).String() // placeholder
+	return prefix + "_" + time.Now().UTC().Format("20060102150405") + "_" + strconv.FormatInt(s.data.Seq, 10)
 }
 
 func (s *Store) SeedIfEmpty(_ context.Context, users []domain.User) error {
@@ -146,9 +143,9 @@ func (s *Store) ListByClienteID(_ context.Context, clienteID string) ([]domain.S
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	out := make([]domain.Simulacion, 0)
-	for _, s := range s.data.Simulaciones {
-		if s.ClienteID == clienteID {
-			out = append(out, s)
+	for _, item := range s.data.Simulaciones {
+		if item.ClienteID == clienteID {
+			out = append(out, item)
 		}
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].CreadoEn.After(out[j].CreadoEn) })

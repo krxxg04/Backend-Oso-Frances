@@ -18,14 +18,14 @@ type Pago struct {
 }
 
 type SimulacionInput struct {
-	NombreCliente         string    `json:"nombreCliente"`
-	PrecioVehiculo        float64   `json:"precioVehiculo"`
-	PorcentajeCuotaInicial float64  `json:"porcentajeCuotaInicial"`
-	PlazoMeses            int       `json:"plazoMeses"`
-	TasaNominalAnual      float64   `json:"tasaNominalAnual"`
-	CapitalizacionPorAnio int       `json:"capitalizacionPorAnio"`
-	PeriodosGracia        int       `json:"periodosGracia"`
-	TipoGracia            GraceType `json:"tipoGracia"`
+	NombreCliente          string    `json:"nombreCliente"`
+	PrecioVehiculo         float64   `json:"precioVehiculo"`
+	PorcentajeCuotaInicial float64   `json:"porcentajeCuotaInicial"`
+	PlazoMeses             int       `json:"plazoMeses"`
+	TasaNominalAnual       float64   `json:"tasaNominalAnual"`
+	CapitalizacionPorAnio  int       `json:"capitalizacionPorAnio"`
+	PeriodosGracia         int       `json:"periodosGracia"`
+	TipoGracia             GraceType `json:"tipoGracia"`
 }
 
 type SimulacionResult struct {
@@ -36,18 +36,18 @@ type SimulacionResult struct {
 }
 
 type Simulacion struct {
-	ID       string           `json:"id"`
-	ClienteID string          `json:"clienteId"`
-	CreadoEn time.Time        `json:"creadoEn"`
-	Input    SimulacionInput  `json:"input"`
-	Result   SimulacionResult `json:"result"`
+	ID        string           `json:"id"`
+	ClienteID string           `json:"clienteId"`
+	CreadoEn  time.Time        `json:"creadoEn"`
+	Input     SimulacionInput  `json:"input"`
+	Result    SimulacionResult `json:"result"`
 }
 
 type Cliente struct {
-	ID       string    `json:"id"`
-	Nombre   string    `json:"nombre"`
-	NombreKey string   `json:"nombreKey"`
-	CreadoEn time.Time `json:"creadoEn"`
+	ID        string    `json:"id"`
+	Nombre    string    `json:"nombre"`
+	NombreKey string    `json:"nombreKey"`
+	CreadoEn  time.Time `json:"creadoEn"`
 }
 
 type User struct {

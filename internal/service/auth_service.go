@@ -33,30 +33,46 @@ func (s *AuthService) Seed(ctx context.Context) error {
 
 func (s *AuthService) Login(ctx context.Context, username, password string) (string, string, error) {
 	u, ok, err := s.users.GetByUsername(ctx, username)
-	if err != nil { return "", "", err }
-	if !ok { return "", "", errors.New("unauthorized") }
+	if err != nil {
+		return "", "", err
+	}
+	if !ok {
+		return "", "", errors.New("unauthorized")
+	}
 	if err := bcrypt.CompareHashAndPassword([]byte(u.PasswordHash), []byte(password)); err != nil {
 		return "", "", errors.New("unauthorized")
 	}
 	acc, err := s.tokens.Sign(u.Username, "access", time.Now().Add(s.accessTTL))
-	if err != nil { return "", "", err }
+	if err != nil {
+		return "", "", err
+	}
 	ref, err := s.tokens.Sign(u.Username, "refresh", time.Now().Add(s.refreshTTL))
-	if err != nil { return "", "", err }
+	if err != nil {
+		return "", "", err
+	}
 	return acc, ref, nil
 }
 
 func (s *AuthService) VerifyAccess(token string) (string, error) {
 	claims, err := s.tokens.Verify(token, "access")
-	if err != nil { return "", err }
+	if err != nil {
+		return "", err
+	}
 	return claims.Sub, nil
 }
 
 func (s *AuthService) Refresh(refresh string) (string, string, error) {
 	claims, err := s.tokens.Verify(refresh, "refresh")
-	if err != nil { return "", "", errors.New("unauthorized") }
+	if err != nil {
+		return "", "", errors.New("unauthorized")
+	}
 	acc, err := s.tokens.Sign(claims.Sub, "access", time.Now().Add(s.accessTTL))
-	if err != nil { return "", "", err }
+	if err != nil {
+		return "", "", err
+	}
 	ref, err := s.tokens.Sign(claims.Sub, "refresh", time.Now().Add(s.refreshTTL))
-	if err != nil { return "", "", err }
+	if err != nil {
+		return "", "", err
+	}
 	return acc, ref, nil
 }

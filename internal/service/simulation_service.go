@@ -52,13 +52,27 @@ func (s *SimulationService) GetByID(ctx context.Context, id string) (domain.Simu
 
 func ValidateSimulationInput(in domain.SimulacionInput) []domain.APIError {
 	errs := make([]domain.APIError, 0)
-	if util.NormalizeKey(in.NombreCliente) == "" { errs = append(errs, domain.NewError("validation_error", "nombreCliente es requerido", "nombreCliente")) }
-	if in.PrecioVehiculo < 0 { errs = append(errs, domain.NewError("validation_error", "precioVehiculo debe ser >= 0", "precioVehiculo")) }
-	if in.PorcentajeCuotaInicial < 0 || in.PorcentajeCuotaInicial > 100 { errs = append(errs, domain.NewError("validation_error", "porcentajeCuotaInicial debe estar entre 0 y 100", "porcentajeCuotaInicial")) }
-	if in.PlazoMeses < 1 { errs = append(errs, domain.NewError("validation_error", "plazoMeses debe ser >= 1", "plazoMeses")) }
-	if in.CapitalizacionPorAnio < 1 { errs = append(errs, domain.NewError("validation_error", "capitalizacionPorAnio debe ser >= 1", "capitalizacionPorAnio")) }
-	if in.PeriodosGracia < 0 { errs = append(errs, domain.NewError("validation_error", "periodosGracia debe ser >= 0", "periodosGracia")) }
-	if in.TipoGracia != domain.GraceTotal && in.TipoGracia != domain.GraceParcial { errs = append(errs, domain.NewError("validation_error", "tipoGracia debe ser total o parcial", "tipoGracia")) }
+	if util.NormalizeKey(in.NombreCliente) == "" {
+		errs = append(errs, domain.NewError("validation_error", "nombreCliente es requerido", "nombreCliente"))
+	}
+	if in.PrecioVehiculo < 0 {
+		errs = append(errs, domain.NewError("validation_error", "precioVehiculo debe ser >= 0", "precioVehiculo"))
+	}
+	if in.PorcentajeCuotaInicial < 0 || in.PorcentajeCuotaInicial > 100 {
+		errs = append(errs, domain.NewError("validation_error", "porcentajeCuotaInicial debe estar entre 0 y 100", "porcentajeCuotaInicial"))
+	}
+	if in.PlazoMeses < 1 {
+		errs = append(errs, domain.NewError("validation_error", "plazoMeses debe ser >= 1", "plazoMeses"))
+	}
+	if in.CapitalizacionPorAnio < 1 {
+		errs = append(errs, domain.NewError("validation_error", "capitalizacionPorAnio debe ser >= 1", "capitalizacionPorAnio"))
+	}
+	if in.PeriodosGracia < 0 {
+		errs = append(errs, domain.NewError("validation_error", "periodosGracia debe ser >= 0", "periodosGracia"))
+	}
+	if in.TipoGracia != domain.GraceTotal && in.TipoGracia != domain.GraceParcial {
+		errs = append(errs, domain.NewError("validation_error", "tipoGracia debe ser total o parcial", "tipoGracia"))
+	}
 	return errs
 }
 
@@ -70,7 +84,9 @@ func CalculateSimulation(in domain.SimulacionInput) domain.SimulacionResult {
 	i := math.Pow(1+(tn/float64(in.CapitalizacionPorAnio)), float64(in.CapitalizacionPorAnio)/12.0) - 1
 	capital := in.PrecioVehiculo - in.PrecioVehiculo*(in.PorcentajeCuotaInicial/100)
 	gracia := in.PeriodosGracia
-	if gracia > in.PlazoMeses { gracia = in.PlazoMeses }
+	if gracia > in.PlazoMeses {
+		gracia = in.PlazoMeses
+	}
 	remaining := in.PlazoMeses - gracia
 	saldo := capital
 	cron := make([]domain.Pago, 0, in.PlazoMeses)
@@ -103,13 +119,17 @@ func CalculateSimulation(in domain.SimulacionInput) domain.SimulacionResult {
 			cuota = interes + amort
 		}
 		saldo -= amort
-		if saldo < 1e-8 { saldo = 0 }
+		if saldo < 1e-8 {
+			saldo = 0
+		}
 		cron = append(cron, domain.Pago{Mes: mes, Cuota: util.Round2(cuota), Interes: util.Round2(interes), Amortizacion: util.Round2(amort), SaldoDeudor: util.Round2(saldo)})
 	}
 
 	flows := make([]float64, 0, len(cron)+1)
 	flows = append(flows, -capital)
-	for _, p := range cron { flows = append(flows, p.Cuota) }
+	for _, p := range cron {
+		flows = append(flows, p.Cuota)
+	}
 
 	van := npv(i, flows)
 	tir := irr(flows)
@@ -137,20 +157,30 @@ func irr(flows []float64) float64 {
 				dfx -= float64(t) * f / math.Pow(1+x, float64(t+1))
 			}
 		}
-		if math.Abs(fx) < 1e-10 { return x }
-		if dfx == 0 { break }
+		if math.Abs(fx) < 1e-10 {
+			return x
+		}
+		if dfx == 0 {
+			break
+		}
 		nx := x - fx/dfx
-		if nx <= -0.9999 || math.IsNaN(nx) || math.IsInf(nx, 0) { break }
+		if nx <= -0.9999 || math.IsNaN(nx) || math.IsInf(nx, 0) {
+			break
+		}
 		x = nx
 	}
 	lo, hi := -0.99, 10.0
 	fLo := npv(lo, flows)
 	fHi := npv(hi, flows)
-	if fLo*fHi > 0 { return x }
+	if fLo*fHi > 0 {
+		return x
+	}
 	for i := 0; i < 200; i++ {
 		mid := (lo + hi) / 2
 		fMid := npv(mid, flows)
-		if math.Abs(fMid) < 1e-10 { return mid }
+		if math.Abs(fMid) < 1e-10 {
+			return mid
+		}
 		if fLo*fMid < 0 {
 			hi = mid
 			fHi = fMid
