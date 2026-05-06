@@ -39,15 +39,34 @@ func (s *Store) migrate(ctx context.Context) error {
 	q := `
 create table if not exists users (
   username text primary key,
+  email text,
+  dni text,
+  full_name text,
   password_hash text not null,
   role text not null,
   created_at timestamptz not null default now()
 );
 
+alter table users add column if not exists email text;
+alter table users add column if not exists dni text;
+alter table users add column if not exists full_name text;
+
 create table if not exists clientes (
   id text primary key,
   nombre text not null,
   nombre_key text not null unique,
+  creado_en timestamptz not null
+);
+
+create table if not exists vehicles (
+  id text primary key,
+  cliente_id text not null references clientes(id),
+  marca text not null,
+  modelo text not null,
+  anio integer not null default 0,
+  tipo text not null default '',
+  precio numeric not null,
+  moneda text not null,
   creado_en timestamptz not null
 );
 
@@ -61,6 +80,9 @@ create table if not exists simulaciones (
 
 create index if not exists idx_sim_cliente_creado
 on simulaciones(cliente_id, creado_en desc);
+
+create index if not exists idx_vehicles_cliente_creado
+on vehicles(cliente_id, creado_en desc);
 `
 	_, err := s.pool.Exec(ctx, q)
 	return err
@@ -81,7 +103,7 @@ func (s *Store) SeedIfEmpty(ctx context.Context, users []domain.User) error {
 		return nil
 	}
 	for _, u := range users {
-		_, err := s.pool.Exec(ctx, `insert into users (username, password_hash, role) values ($1,$2,$3)`, u.Username, u.PasswordHash, u.Role)
+		_, err := s.pool.Exec(ctx, `insert into users (username, email, dni, full_name, password_hash, role) values ($1,$2,$3,$4,$5,$6)`, u.Username, u.Email, u.DNI, u.FullName, u.PasswordHash, u.Role)
 		if err != nil {
 			return err
 		}
@@ -97,13 +119,13 @@ func (s *Store) CreateUser(ctx context.Context, user domain.User) error {
 	if exists {
 		return fmt.Errorf("user_exists")
 	}
-	_, err = s.pool.Exec(ctx, `insert into users (username, password_hash, role) values ($1,$2,$3)`, user.Username, user.PasswordHash, user.Role)
+	_, err = s.pool.Exec(ctx, `insert into users (username, email, dni, full_name, password_hash, role) values ($1,$2,$3,$4,$5,$6)`, user.Username, user.Email, user.DNI, user.FullName, user.PasswordHash, user.Role)
 	return err
 }
 
 func (s *Store) GetByUsername(ctx context.Context, username string) (domain.User, bool, error) {
 	var u domain.User
-	err := s.pool.QueryRow(ctx, `select username, password_hash, role from users where username=$1`, username).Scan(&u.Username, &u.PasswordHash, &u.Role)
+	err := s.pool.QueryRow(ctx, `select username, coalesce(email,''), coalesce(dni,''), coalesce(full_name,''), password_hash, role from users where username=$1`, username).Scan(&u.Username, &u.Email, &u.DNI, &u.FullName, &u.PasswordHash, &u.Role)
 	if err != nil {
 		if err == pgx.ErrNoRows {
 			return domain.User{}, false, nil
@@ -213,6 +235,55 @@ func (s *Store) ListByClienteID(ctx context.Context, clienteID string) ([]domain
 			return nil, err
 		}
 		out = append(out, sim)
+	}
+	return out, rows.Err()
+}
+
+func (s *Store) CreateVehicle(ctx context.Context, vehicle domain.Vehicle) (domain.Vehicle, error) {
+	vehicle.ID = newID("veh")
+	vehicle.CreadoEn = time.Now().UTC()
+	_, err := s.pool.Exec(ctx, `
+insert into vehicles (id,cliente_id,marca,modelo,anio,tipo,precio,moneda,creado_en)
+values ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+		vehicle.ID, vehicle.ClienteID, vehicle.Marca, vehicle.Modelo, vehicle.Anio, vehicle.Tipo, vehicle.Precio, vehicle.Moneda, vehicle.CreadoEn)
+	if err != nil {
+		return domain.Vehicle{}, err
+	}
+	return vehicle, nil
+}
+
+func (s *Store) GetVehicleByID(ctx context.Context, id string) (domain.Vehicle, bool, error) {
+	var vehicle domain.Vehicle
+	err := s.pool.QueryRow(ctx, `
+select id,cliente_id,marca,modelo,anio,tipo,precio,moneda,creado_en
+from vehicles
+where id=$1`, id).Scan(&vehicle.ID, &vehicle.ClienteID, &vehicle.Marca, &vehicle.Modelo, &vehicle.Anio, &vehicle.Tipo, &vehicle.Precio, &vehicle.Moneda, &vehicle.CreadoEn)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return domain.Vehicle{}, false, nil
+		}
+		return domain.Vehicle{}, false, err
+	}
+	return vehicle, true, nil
+}
+
+func (s *Store) ListVehiclesByClienteID(ctx context.Context, clienteID string) ([]domain.Vehicle, error) {
+	rows, err := s.pool.Query(ctx, `
+select id,cliente_id,marca,modelo,anio,tipo,precio,moneda,creado_en
+from vehicles
+where cliente_id=$1
+order by creado_en desc`, clienteID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := make([]domain.Vehicle, 0)
+	for rows.Next() {
+		var vehicle domain.Vehicle
+		if err := rows.Scan(&vehicle.ID, &vehicle.ClienteID, &vehicle.Marca, &vehicle.Modelo, &vehicle.Anio, &vehicle.Tipo, &vehicle.Precio, &vehicle.Moneda, &vehicle.CreadoEn); err != nil {
+			return nil, err
+		}
+		out = append(out, vehicle)
 	}
 	return out, rows.Err()
 }

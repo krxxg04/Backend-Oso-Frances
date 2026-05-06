@@ -19,6 +19,7 @@ func main() {
 
 	var authSvc *service.AuthService
 	var simSvc *service.SimulationService
+	var vehicleSvc *service.VehicleService
 
 	if cfg.DatabaseURL != "" {
 		log.Println("storage mode: PostgreSQL (DATABASE_URL)")
@@ -29,6 +30,7 @@ func main() {
 		defer store.Close()
 		authSvc = service.NewAuthService(store, store, tokens, cfg.AccessTTL, cfg.RefreshTTL)
 		simSvc = service.NewSimulationService(store, store)
+		vehicleSvc = service.NewVehicleService(store, store)
 	} else {
 		log.Printf("storage mode: JSON local (%s)", cfg.DataFilePath)
 		store, err := jsondb.NewStore(cfg.DataFilePath)
@@ -37,13 +39,14 @@ func main() {
 		}
 		authSvc = service.NewAuthService(store, store, tokens, cfg.AccessTTL, cfg.RefreshTTL)
 		simSvc = service.NewSimulationService(store, store)
+		vehicleSvc = service.NewVehicleService(store, store)
 	}
 
 	if err := authSvc.Seed(ctx); err != nil {
 		log.Fatalf("error seeding users: %v", err)
 	}
 
-	r := httptransport.NewRouter(cfg, authSvc, simSvc)
+	r := httptransport.NewRouter(cfg, authSvc, simSvc, vehicleSvc)
 	log.Printf("server starting on :%s", cfg.Port)
 
 	if err := r.Run(":" + cfg.Port); err != nil {

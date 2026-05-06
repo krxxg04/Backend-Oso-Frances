@@ -22,3 +22,9 @@ type SimulacionRepository interface {
 	GetByID(ctx context.Context, id string) (domain.Simulacion, bool, error)
 	ListByClienteID(ctx context.Context, clienteID string) ([]domain.Simulacion, error)
 }
+
+type VehicleRepository interface {
+	CreateVehicle(ctx context.Context, vehicle domain.Vehicle) (domain.Vehicle, error)
+	GetVehicleByID(ctx context.Context, id string) (domain.Vehicle, bool, error)
+	ListVehiclesByClienteID(ctx context.Context, clienteID string) ([]domain.Vehicle, error)
+}

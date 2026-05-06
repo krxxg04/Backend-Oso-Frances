@@ -7,6 +7,8 @@ import (
 	"context"
 	"errors"
 	"math"
+	"strings"
+	"time"
 )
 
 type SimulationService struct {
@@ -20,6 +22,7 @@ func NewSimulationService(clientes repository.ClienteRepository, sims repository
 
 func (s *SimulationService) CreateForUser(ctx context.Context, username string, in domain.SimulacionInput) (domain.Simulacion, error) {
 	in.NombreCliente = username
+	in = normalizeSimulationInput(in)
 	if errs := ValidateSimulationInput(in); len(errs) > 0 {
 		return domain.Simulacion{}, errors.New("validation_error")
 	}
@@ -33,6 +36,10 @@ func (s *SimulationService) CreateForUser(ctx context.Context, username string, 
 }
 
 func (s *SimulationService) ListByUser(ctx context.Context, username string) ([]domain.Simulacion, error) {
+	return s.ListByUserFiltered(ctx, username, domain.SimulacionFilter{})
+}
+
+func (s *SimulationService) ListByUserFiltered(ctx context.Context, username string, filter domain.SimulacionFilter) ([]domain.Simulacion, error) {
 	clientes, err := s.clientes.GetByNombre(ctx, username)
 	if err != nil {
 		return nil, err
@@ -43,7 +50,11 @@ func (s *SimulationService) ListByUser(ctx context.Context, username string) ([]
 		if err != nil {
 			return nil, err
 		}
-		out = append(out, items...)
+		for _, item := range items {
+			if matchesSimulationFilter(item, filter) {
+				out = append(out, item)
+			}
+		}
 	}
 	return out, nil
 }
@@ -52,13 +63,37 @@ func (s *SimulationService) GetByID(ctx context.Context, id string) (domain.Simu
 	return s.sims.GetByID(ctx, id)
 }
 
+func (s *SimulationService) GetByIDForUser(ctx context.Context, username, id string) (domain.Simulacion, bool, error) {
+	sim, ok, err := s.sims.GetByID(ctx, id)
+	if err != nil || !ok {
+		return sim, ok, err
+	}
+	clientes, err := s.clientes.GetByNombre(ctx, username)
+	if err != nil {
+		return domain.Simulacion{}, false, err
+	}
+	for _, c := range clientes {
+		if c.ID == sim.ClienteID {
+			return sim, true, nil
+		}
+	}
+	return domain.Simulacion{}, false, nil
+}
+
 func ValidateSimulationInput(in domain.SimulacionInput) []domain.APIError {
+	in = normalizeSimulationInput(in)
 	errs := make([]domain.APIError, 0)
 	if util.NormalizeKey(in.NombreCliente) == "" {
 		errs = append(errs, domain.NewError("validation_error", "nombreCliente es requerido", "nombreCliente"))
 	}
+	if in.Moneda != "" && in.Moneda != domain.CurrencyPEN && in.Moneda != domain.CurrencyUSD {
+		errs = append(errs, domain.NewError("validation_error", "moneda debe ser PEN o USD", "moneda"))
+	}
 	if in.PrecioVehiculo < 0 {
 		errs = append(errs, domain.NewError("validation_error", "precioVehiculo debe ser >= 0", "precioVehiculo"))
+	}
+	if in.Vehiculo.Precio < 0 {
+		errs = append(errs, domain.NewError("validation_error", "vehiculo.precio debe ser >= 0", "vehiculo.precio"))
 	}
 	if in.PorcentajeCuotaInicial < 0 || in.PorcentajeCuotaInicial > 100 {
 		errs = append(errs, domain.NewError("validation_error", "porcentajeCuotaInicial debe estar entre 0 y 100", "porcentajeCuotaInicial"))
@@ -66,17 +101,35 @@ func ValidateSimulationInput(in domain.SimulacionInput) []domain.APIError {
 	if in.PlazoMeses < 1 {
 		errs = append(errs, domain.NewError("validation_error", "plazoMeses debe ser >= 1", "plazoMeses"))
 	}
+	if in.PlazoMeses != 24 && in.PlazoMeses != 36 {
+		errs = append(errs, domain.NewError("validation_error", "plazoMeses debe ser 24 o 36 para Compra Inteligente", "plazoMeses"))
+	}
+	if in.TipoTasa != "" && in.TipoTasa != domain.RateEffective && in.TipoTasa != domain.RateNominal {
+		errs = append(errs, domain.NewError("validation_error", "tipoTasa debe ser efectiva o nominal", "tipoTasa"))
+	}
+	if in.TasaAnual < 0 || in.TasaEfectivaAnual < 0 {
+		errs = append(errs, domain.NewError("validation_error", "la tasa anual debe ser >= 0", "tasaAnual"))
+	}
+	if in.TipoTasa == domain.RateNominal && in.FrecuenciaCapitalizacion < 1 {
+		errs = append(errs, domain.NewError("validation_error", "frecuenciaCapitalizacion debe ser >= 1 cuando la tasa es nominal", "frecuenciaCapitalizacion"))
+	}
 	if in.PeriodosPorAnio < 1 {
 		errs = append(errs, domain.NewError("validation_error", "periodosPorAnio debe ser >= 1", "periodosPorAnio"))
 	}
 	if in.PeriodosGracia < 0 {
 		errs = append(errs, domain.NewError("validation_error", "periodosGracia debe ser >= 0", "periodosGracia"))
 	}
-	if in.TipoGracia != domain.GraceTotal && in.TipoGracia != domain.GraceParcial {
-		errs = append(errs, domain.NewError("validation_error", "tipoGracia debe ser total o parcial", "tipoGracia"))
+	if in.TipoGracia != "" && in.TipoGracia != domain.GraceNone && in.TipoGracia != domain.GraceTotal && in.TipoGracia != domain.GraceParcial {
+		errs = append(errs, domain.NewError("validation_error", "tipoGracia debe ser sin_gracia, total o parcial", "tipoGracia"))
 	}
 	if in.ValorFinal < 0 {
 		errs = append(errs, domain.NewError("validation_error", "valorFinal debe ser >= 0", "valorFinal"))
+	}
+	if in.CuotaFinalBalloon < 0 {
+		errs = append(errs, domain.NewError("validation_error", "cuotaFinalBalloon debe ser >= 0", "cuotaFinalBalloon"))
+	}
+	if in.SeguroVehicularMensual < 0 || in.SeguroDesgravamenAnual < 0 {
+		errs = append(errs, domain.NewError("validation_error", "los seguros deben ser >= 0", "seguros"))
 	}
 	if in.CostosFinanciados < 0 {
 		errs = append(errs, domain.NewError("validation_error", "costosFinanciados debe ser >= 0", "costosFinanciados"))
@@ -84,20 +137,24 @@ func ValidateSimulationInput(in domain.SimulacionInput) []domain.APIError {
 	if in.CostosIniciales < 0 {
 		errs = append(errs, domain.NewError("validation_error", "costosIniciales debe ser >= 0", "costosIniciales"))
 	}
+	if in.FechaInicio != "" {
+		if _, err := time.Parse("2006-01-02", in.FechaInicio); err != nil {
+			errs = append(errs, domain.NewError("validation_error", "fechaInicio debe tener formato YYYY-MM-DD", "fechaInicio"))
+		}
+	}
 	return errs
 }
 
 func CalculateSimulation(in domain.SimulacionInput) domain.SimulacionResult {
-	tea := in.TasaEfectivaAnual
-	if tea > 1 {
-		tea = tea / 100
-	}
+	in = normalizeSimulationInput(in)
+	tea := annualEffectiveRate(in)
 	periodosPorAnio := in.PeriodosPorAnio
 	if periodosPorAnio <= 0 {
 		periodosPorAnio = 12
 	}
 	i := math.Pow(1+tea, 1/float64(periodosPorAnio)) - 1
 	montoFinanciado := in.PrecioVehiculo - in.PrecioVehiculo*(in.PorcentajeCuotaInicial/100) + in.CostosFinanciados
+	cuotaInicial := in.PrecioVehiculo * (in.PorcentajeCuotaInicial / 100)
 	montoNeto := montoFinanciado - in.CostosIniciales
 	gracia := in.PeriodosGracia
 	if gracia > in.PlazoMeses {
@@ -106,37 +163,49 @@ func CalculateSimulation(in domain.SimulacionInput) domain.SimulacionResult {
 	remaining := in.PlazoMeses - gracia
 	saldo := montoFinanciado
 	cron := make([]domain.Pago, 0, in.PlazoMeses)
+	fechaInicio, hasFecha := parseStartDate(in.FechaInicio)
+	seguroDesgravamenPeriodo := periodicRate(in.SeguroDesgravamenAnual, periodosPorAnio)
+	totalIntereses := 0.0
+	totalSeguros := 0.0
 
 	for mes := 1; mes <= gracia; mes++ {
+		saldoInicial := saldo
 		interes := saldo * i
+		seguroVehicular := in.SeguroVehicularMensual
+		seguroDesgravamen := saldoInicial * seguroDesgravamenPeriodo
+		seguro := seguroVehicular + seguroDesgravamen
+		totalIntereses += interes
+		totalSeguros += seguro
 		if in.TipoGracia == domain.GraceTotal {
 			saldo += interes
-			cron = append(cron, domain.Pago{Mes: mes, Cuota: 0, Interes: util.Round2(interes), Amortizacion: 0, SaldoDeudor: util.Round2(saldo)})
+			cron = append(cron, buildPago(mes, fechaInicio, hasFecha, saldoInicial, seguro, seguroVehicular, seguroDesgravamen, 0, interes, 0, saldo, in.TipoGracia))
 		} else {
-			cron = append(cron, domain.Pago{Mes: mes, Cuota: util.Round2(interes), Interes: util.Round2(interes), Amortizacion: 0, SaldoDeudor: util.Round2(saldo)})
+			cron = append(cron, buildPago(mes, fechaInicio, hasFecha, saldoInicial, seguro, seguroVehicular, seguroDesgravamen, interes, interes, 0, saldo, in.TipoGracia))
 		}
 	}
 
 	cuotaBase := 0.0
+	valorFinal := in.ValorFinal
 	if remaining > 0 {
 		if i == 0 {
-			amortNoBalloon := (saldo - in.ValorFinal)
+			amortNoBalloon := saldo - valorFinal
 			if amortNoBalloon < 0 {
 				amortNoBalloon = 0
 			}
 			cuotaBase = amortNoBalloon / float64(remaining)
 		} else {
 			factor := (i * math.Pow(1+i, float64(remaining))) / (math.Pow(1+i, float64(remaining)) - 1)
-			cuotaBase = (saldo - (in.ValorFinal / math.Pow(1+i, float64(remaining)))) * factor
+			cuotaBase = (saldo - (valorFinal / math.Pow(1+i, float64(remaining)))) * factor
 		}
 	}
 
 	for k := 1; k <= remaining; k++ {
 		mes := gracia + k
+		saldoInicial := saldo
 		interes := saldo * i
 		cuota := cuotaBase
 		if k == remaining {
-			cuota += in.ValorFinal
+			cuota += valorFinal
 		}
 		amort := cuota - interes
 		if k == remaining || amort > saldo {
@@ -147,7 +216,12 @@ func CalculateSimulation(in domain.SimulacionInput) domain.SimulacionResult {
 		if saldo < 1e-8 {
 			saldo = 0
 		}
-		cron = append(cron, domain.Pago{Mes: mes, Cuota: util.Round2(cuota), Interes: util.Round2(interes), Amortizacion: util.Round2(amort), SaldoDeudor: util.Round2(saldo)})
+		seguroVehicular := in.SeguroVehicularMensual
+		seguroDesgravamen := saldoInicial * seguroDesgravamenPeriodo
+		seguro := seguroVehicular + seguroDesgravamen
+		totalIntereses += interes
+		totalSeguros += seguro
+		cron = append(cron, buildPago(mes, fechaInicio, hasFecha, saldoInicial, seguro, seguroVehicular, seguroDesgravamen, cuota, interes, amort, saldo, domain.GraceNone))
 	}
 
 	flows := make([]float64, 0, len(cron)+1)
@@ -164,18 +238,175 @@ func CalculateSimulation(in domain.SimulacionInput) domain.SimulacionResult {
 	if tir > -1 {
 		tcea = math.Pow(1+tir, float64(periodosPorAnio)) - 1
 	}
+	fechaFinalizacion := ""
+	if hasFecha && len(cron) > 0 {
+		fechaFinalizacion = cron[len(cron)-1].Fecha
+	}
+	resumen := domain.FinancialSummary{
+		MontoFinanciado:   util.Round2(montoFinanciado),
+		CuotaInicial:      util.Round2(cuotaInicial),
+		CuotaMensual:      util.Round2(cuotaBase + in.SeguroVehicularMensual + montoFinanciado*seguroDesgravamenPeriodo),
+		CuotaFinalBalloon: util.Round2(valorFinal),
+		TotalIntereses:    util.Round2(totalIntereses),
+		TotalSeguros:      util.Round2(totalSeguros),
+		TotalPagado:       util.Round2(costoTotal),
+		VAN:               van,
+		TIR:               tir,
+		TCEA:              tcea,
+		FechaFinalizacion: fechaFinalizacion,
+	}
 
 	return domain.SimulacionResult{
 		TasaPeriodo:     i,
+		Tasa:            domain.Rate{Tipo: in.TipoTasa, TasaAnual: in.TasaAnual, FrecuenciaCapitalizacion: in.FrecuenciaCapitalizacion, PeriodosPagoPorAnio: periodosPorAnio, TasaEfectivaAnualCalculada: tea},
+		Seguros:         domain.Insurance{SeguroVehicularMensual: in.SeguroVehicularMensual, SeguroDesgravamenAnual: in.SeguroDesgravamenAnual},
 		CuotaBase:       util.Round2(cuotaBase),
 		VAN:             van,
 		TIR:             tir,
 		TCEA:            tcea,
 		CostoTotal:      util.Round2(costoTotal),
+		TotalIntereses:  util.Round2(totalIntereses),
+		TotalSeguros:    util.Round2(totalSeguros),
+		CuotaInicial:    util.Round2(cuotaInicial),
 		MontoNeto:       util.Round2(montoNeto),
 		MontoFinanciado: util.Round2(montoFinanciado),
+		Resumen:         resumen,
 		Cronograma:      cron,
 	}
+}
+
+func normalizeSimulationInput(in domain.SimulacionInput) domain.SimulacionInput {
+	if in.Moneda == "" {
+		in.Moneda = domain.CurrencyPEN
+	}
+	if in.PrecioVehiculo == 0 && in.Vehiculo.Precio > 0 {
+		in.PrecioVehiculo = in.Vehiculo.Precio
+	}
+	if in.Vehiculo.Precio == 0 {
+		in.Vehiculo.Precio = in.PrecioVehiculo
+	}
+	if in.Vehiculo.Moneda == "" {
+		in.Vehiculo.Moneda = in.Moneda
+	}
+	if in.PeriodosPorAnio <= 0 {
+		in.PeriodosPorAnio = 12
+	}
+	if in.TipoTasa == "" {
+		in.TipoTasa = domain.RateEffective
+	}
+	if in.TasaAnual == 0 {
+		in.TasaAnual = in.TasaEfectivaAnual
+	}
+	if in.FrecuenciaCapitalizacion <= 0 {
+		in.FrecuenciaCapitalizacion = in.PeriodosPorAnio
+	}
+	if in.TipoGracia == "" {
+		in.TipoGracia = domain.GraceNone
+	}
+	if in.CuotaFinalBalloon > 0 {
+		in.ValorFinal = in.CuotaFinalBalloon
+	} else {
+		in.CuotaFinalBalloon = in.ValorFinal
+	}
+	return in
+}
+
+func annualEffectiveRate(in domain.SimulacionInput) float64 {
+	rate := in.TasaAnual
+	if rate > 1 {
+		rate = rate / 100
+	}
+	if in.TipoTasa == domain.RateNominal {
+		frequency := in.FrecuenciaCapitalizacion
+		if frequency <= 0 {
+			frequency = 12
+		}
+		return math.Pow(1+rate/float64(frequency), float64(frequency)) - 1
+	}
+	return rate
+}
+
+func periodicRate(annual float64, periodsPerYear int) float64 {
+	if annual <= 0 {
+		return 0
+	}
+	if annual > 1 {
+		annual = annual / 100
+	}
+	if periodsPerYear <= 0 {
+		periodsPerYear = 12
+	}
+	return math.Pow(1+annual, 1/float64(periodsPerYear)) - 1
+}
+
+func parseStartDate(raw string) (time.Time, bool) {
+	if raw == "" {
+		return time.Time{}, false
+	}
+	t, err := time.Parse("2006-01-02", raw)
+	return t, err == nil
+}
+
+func buildPago(mes int, fechaInicio time.Time, hasFecha bool, saldoInicial, seguro, seguroVehicular, seguroDesgravamen, cuotaCapitalInteres, interes, amortizacion, saldoFinal float64, tipoGracia domain.GraceType) domain.Pago {
+	fechaPago := time.Time{}
+	fecha := ""
+	if hasFecha {
+		fechaPago = fechaInicio.AddDate(0, mes, 0)
+		fecha = fechaPago.Format("2006-01-02")
+	}
+	cuotaTotal := cuotaCapitalInteres + seguro
+	return domain.Pago{
+		Mes:                 mes,
+		Periodo:             mes,
+		Fecha:               fecha,
+		FechaPago:           fechaPago,
+		SaldoInicial:        util.Round2(saldoInicial),
+		Cuota:               util.Round2(cuotaTotal),
+		CuotaCapitalInteres: util.Round2(cuotaCapitalInteres),
+		Interes:             util.Round2(interes),
+		SeguroVehicular:     util.Round2(seguroVehicular),
+		SeguroDesgravamen:   util.Round2(seguroDesgravamen),
+		Seguro:              util.Round2(seguro),
+		Amortizacion:        util.Round2(amortizacion),
+		SaldoFinal:          util.Round2(saldoFinal),
+		SaldoDeudor:         util.Round2(saldoFinal),
+		TipoGracia:          tipoGracia,
+	}
+}
+
+func matchesSimulationFilter(sim domain.Simulacion, filter domain.SimulacionFilter) bool {
+	if filter.Moneda != "" && sim.Input.Moneda != filter.Moneda {
+		return false
+	}
+	if filter.PlazoMeses > 0 && sim.Input.PlazoMeses != filter.PlazoMeses {
+		return false
+	}
+	if filter.MontoMin > 0 && sim.Result.MontoFinanciado < filter.MontoMin {
+		return false
+	}
+	if filter.MontoMax > 0 && sim.Result.MontoFinanciado > filter.MontoMax {
+		return false
+	}
+	if filter.FechaDesde != "" {
+		from, err := time.Parse("2006-01-02", filter.FechaDesde)
+		if err == nil && sim.CreadoEn.Before(from) {
+			return false
+		}
+	}
+	if filter.FechaHasta != "" {
+		to, err := time.Parse("2006-01-02", filter.FechaHasta)
+		if err == nil && sim.CreadoEn.After(to.AddDate(0, 0, 1)) {
+			return false
+		}
+	}
+	if filter.Vehiculo != "" {
+		needle := util.NormalizeKey(filter.Vehiculo)
+		haystack := util.NormalizeKey(strings.TrimSpace(sim.Input.Vehiculo.Marca + " " + sim.Input.Vehiculo.Modelo + " " + sim.Input.Vehiculo.Tipo))
+		if !strings.Contains(haystack, needle) {
+			return false
+		}
+	}
+	return true
 }
 
 func npv(r float64, flows []float64) float64 {
