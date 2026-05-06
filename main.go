@@ -27,7 +27,7 @@ func main() {
 			log.Fatalf("error connecting postgres: %v", err)
 		}
 		defer store.Close()
-		authSvc = service.NewAuthService(store, tokens, cfg.AccessTTL, cfg.RefreshTTL)
+		authSvc = service.NewAuthService(store, store, tokens, cfg.AccessTTL, cfg.RefreshTTL)
 		simSvc = service.NewSimulationService(store, store)
 	} else {
 		log.Printf("storage mode: JSON local (%s)", cfg.DataFilePath)
@@ -35,7 +35,7 @@ func main() {
 		if err != nil {
 			log.Fatalf("error opening data store: %v", err)
 		}
-		authSvc = service.NewAuthService(store, tokens, cfg.AccessTTL, cfg.RefreshTTL)
+		authSvc = service.NewAuthService(store, store, tokens, cfg.AccessTTL, cfg.RefreshTTL)
 		simSvc = service.NewSimulationService(store, store)
 	}
 

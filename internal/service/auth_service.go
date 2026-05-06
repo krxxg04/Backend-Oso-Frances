@@ -14,22 +14,28 @@ import (
 
 type AuthService struct {
 	users      repository.UserRepository
+	clientes   repository.ClienteRepository
 	tokens     *auth.TokenManager
 	accessTTL  time.Duration
 	refreshTTL time.Duration
 }
 
-func NewAuthService(users repository.UserRepository, tokens *auth.TokenManager, accessTTL, refreshTTL time.Duration) *AuthService {
-	return &AuthService{users: users, tokens: tokens, accessTTL: accessTTL, refreshTTL: refreshTTL}
+func NewAuthService(users repository.UserRepository, clientes repository.ClienteRepository, tokens *auth.TokenManager, accessTTL, refreshTTL time.Duration) *AuthService {
+	return &AuthService{users: users, clientes: clientes, tokens: tokens, accessTTL: accessTTL, refreshTTL: refreshTTL}
 }
 
 func (s *AuthService) Seed(ctx context.Context) error {
 	adminHash, _ := bcrypt.GenerateFromPassword([]byte("admin"), bcrypt.DefaultCost)
 	userHash, _ := bcrypt.GenerateFromPassword([]byte("user"), bcrypt.DefaultCost)
-	return s.users.SeedIfEmpty(ctx, []domain.User{
+	if err := s.users.SeedIfEmpty(ctx, []domain.User{
 		{Username: "admin", PasswordHash: string(adminHash), Role: "admin"},
 		{Username: "user", PasswordHash: string(userHash), Role: "user"},
-	})
+	}); err != nil {
+		return err
+	}
+	_, _ = s.clientes.GetOrCreateByNombre(ctx, "admin")
+	_, _ = s.clientes.GetOrCreateByNombre(ctx, "user")
+	return nil
 }
 
 func (s *AuthService) Login(ctx context.Context, username, password string) (string, string, error) {
@@ -74,6 +80,9 @@ func (s *AuthService) Register(ctx context.Context, username, password string) (
 		if err.Error() == "user_exists" {
 			return "", "", errors.New("conflict")
 		}
+		return "", "", err
+	}
+	if _, err := s.clientes.GetOrCreateByNombre(ctx, username); err != nil {
 		return "", "", err
 	}
 	acc, err := s.tokens.Sign(username, "access", time.Now().Add(s.accessTTL))

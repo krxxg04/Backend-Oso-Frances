@@ -18,20 +18,22 @@ func NewSimulationService(clientes repository.ClienteRepository, sims repository
 	return &SimulationService{clientes: clientes, sims: sims}
 }
 
-func (s *SimulationService) Create(ctx context.Context, in domain.SimulacionInput) (domain.Simulacion, error) {
+func (s *SimulationService) CreateForUser(ctx context.Context, username string, in domain.SimulacionInput) (domain.Simulacion, error) {
+	in.NombreCliente = username
 	if errs := ValidateSimulationInput(in); len(errs) > 0 {
 		return domain.Simulacion{}, errors.New("validation_error")
 	}
 	res := CalculateSimulation(in)
-	c, err := s.clientes.GetOrCreateByNombre(ctx, in.NombreCliente)
+	c, err := s.clientes.GetOrCreateByNombre(ctx, username)
 	if err != nil {
 		return domain.Simulacion{}, err
 	}
+	in.NombreCliente = c.Nombre
 	return s.sims.Create(ctx, domain.Simulacion{ClienteID: c.ID, Input: in, Result: res})
 }
 
-func (s *SimulationService) ListByNombreCliente(ctx context.Context, nombre string) ([]domain.Simulacion, error) {
-	clientes, err := s.clientes.GetByNombre(ctx, nombre)
+func (s *SimulationService) ListByUser(ctx context.Context, username string) ([]domain.Simulacion, error) {
+	clientes, err := s.clientes.GetByNombre(ctx, username)
 	if err != nil {
 		return nil, err
 	}
@@ -64,8 +66,8 @@ func ValidateSimulationInput(in domain.SimulacionInput) []domain.APIError {
 	if in.PlazoMeses < 1 {
 		errs = append(errs, domain.NewError("validation_error", "plazoMeses debe ser >= 1", "plazoMeses"))
 	}
-	if in.CapitalizacionPorAnio < 1 {
-		errs = append(errs, domain.NewError("validation_error", "capitalizacionPorAnio debe ser >= 1", "capitalizacionPorAnio"))
+	if in.PeriodosPorAnio < 1 {
+		errs = append(errs, domain.NewError("validation_error", "periodosPorAnio debe ser >= 1", "periodosPorAnio"))
 	}
 	if in.PeriodosGracia < 0 {
 		errs = append(errs, domain.NewError("validation_error", "periodosGracia debe ser >= 0", "periodosGracia"))
@@ -73,22 +75,36 @@ func ValidateSimulationInput(in domain.SimulacionInput) []domain.APIError {
 	if in.TipoGracia != domain.GraceTotal && in.TipoGracia != domain.GraceParcial {
 		errs = append(errs, domain.NewError("validation_error", "tipoGracia debe ser total o parcial", "tipoGracia"))
 	}
+	if in.ValorFinal < 0 {
+		errs = append(errs, domain.NewError("validation_error", "valorFinal debe ser >= 0", "valorFinal"))
+	}
+	if in.CostosFinanciados < 0 {
+		errs = append(errs, domain.NewError("validation_error", "costosFinanciados debe ser >= 0", "costosFinanciados"))
+	}
+	if in.CostosIniciales < 0 {
+		errs = append(errs, domain.NewError("validation_error", "costosIniciales debe ser >= 0", "costosIniciales"))
+	}
 	return errs
 }
 
 func CalculateSimulation(in domain.SimulacionInput) domain.SimulacionResult {
-	tn := in.TasaNominalAnual
-	if tn > 1 {
-		tn = tn / 100
+	tea := in.TasaEfectivaAnual
+	if tea > 1 {
+		tea = tea / 100
 	}
-	i := math.Pow(1+(tn/float64(in.CapitalizacionPorAnio)), float64(in.CapitalizacionPorAnio)/12.0) - 1
-	capital := in.PrecioVehiculo - in.PrecioVehiculo*(in.PorcentajeCuotaInicial/100)
+	periodosPorAnio := in.PeriodosPorAnio
+	if periodosPorAnio <= 0 {
+		periodosPorAnio = 12
+	}
+	i := math.Pow(1+tea, 1/float64(periodosPorAnio)) - 1
+	montoFinanciado := in.PrecioVehiculo - in.PrecioVehiculo*(in.PorcentajeCuotaInicial/100) + in.CostosFinanciados
+	montoNeto := montoFinanciado - in.CostosIniciales
 	gracia := in.PeriodosGracia
 	if gracia > in.PlazoMeses {
 		gracia = in.PlazoMeses
 	}
 	remaining := in.PlazoMeses - gracia
-	saldo := capital
+	saldo := montoFinanciado
 	cron := make([]domain.Pago, 0, in.PlazoMeses)
 
 	for mes := 1; mes <= gracia; mes++ {
@@ -101,18 +117,27 @@ func CalculateSimulation(in domain.SimulacionInput) domain.SimulacionResult {
 		}
 	}
 
-	cuota := 0.0
+	cuotaBase := 0.0
 	if remaining > 0 {
 		if i == 0 {
-			cuota = saldo / float64(remaining)
+			amortNoBalloon := (saldo - in.ValorFinal)
+			if amortNoBalloon < 0 {
+				amortNoBalloon = 0
+			}
+			cuotaBase = amortNoBalloon / float64(remaining)
 		} else {
-			cuota = (saldo * i) / (1 - math.Pow(1+i, -float64(remaining)))
+			factor := (i * math.Pow(1+i, float64(remaining))) / (math.Pow(1+i, float64(remaining)) - 1)
+			cuotaBase = (saldo - (in.ValorFinal / math.Pow(1+i, float64(remaining)))) * factor
 		}
 	}
 
 	for k := 1; k <= remaining; k++ {
 		mes := gracia + k
 		interes := saldo * i
+		cuota := cuotaBase
+		if k == remaining {
+			cuota += in.ValorFinal
+		}
 		amort := cuota - interes
 		if k == remaining || amort > saldo {
 			amort = saldo
@@ -126,15 +151,31 @@ func CalculateSimulation(in domain.SimulacionInput) domain.SimulacionResult {
 	}
 
 	flows := make([]float64, 0, len(cron)+1)
-	flows = append(flows, -capital)
+	flows = append(flows, montoNeto)
+	costoTotal := 0.0
 	for _, p := range cron {
-		flows = append(flows, p.Cuota)
+		flows = append(flows, -p.Cuota)
+		costoTotal += p.Cuota
 	}
 
 	van := npv(i, flows)
 	tir := irr(flows)
+	tcea := -1.0
+	if tir > -1 {
+		tcea = math.Pow(1+tir, float64(periodosPorAnio)) - 1
+	}
 
-	return domain.SimulacionResult{TasaPeriodo: i, VAN: van, TIR: tir, Cronograma: cron}
+	return domain.SimulacionResult{
+		TasaPeriodo:     i,
+		CuotaBase:       util.Round2(cuotaBase),
+		VAN:             van,
+		TIR:             tir,
+		TCEA:            tcea,
+		CostoTotal:      util.Round2(costoTotal),
+		MontoNeto:       util.Round2(montoNeto),
+		MontoFinanciado: util.Round2(montoFinanciado),
+		Cronograma:      cron,
+	}
 }
 
 func npv(r float64, flows []float64) float64 {

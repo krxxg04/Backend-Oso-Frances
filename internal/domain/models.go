@@ -22,17 +22,25 @@ type SimulacionInput struct {
 	PrecioVehiculo         float64   `json:"precioVehiculo"`
 	PorcentajeCuotaInicial float64   `json:"porcentajeCuotaInicial"`
 	PlazoMeses             int       `json:"plazoMeses"`
-	TasaNominalAnual       float64   `json:"tasaNominalAnual"`
-	CapitalizacionPorAnio  int       `json:"capitalizacionPorAnio"`
+	TasaEfectivaAnual      float64   `json:"tasaEfectivaAnual"`
+	PeriodosPorAnio        int       `json:"periodosPorAnio"`
 	PeriodosGracia         int       `json:"periodosGracia"`
 	TipoGracia             GraceType `json:"tipoGracia"`
+	ValorFinal             float64   `json:"valorFinal"`
+	CostosFinanciados      float64   `json:"costosFinanciados"`
+	CostosIniciales        float64   `json:"costosIniciales"`
 }
 
 type SimulacionResult struct {
-	TasaPeriodo float64 `json:"tasaPeriodo"`
-	VAN         float64 `json:"van"`
-	TIR         float64 `json:"tir"`
-	Cronograma  []Pago  `json:"cronograma"`
+	TasaPeriodo     float64 `json:"tasaPeriodo"`
+	CuotaBase       float64 `json:"cuotaBase"`
+	VAN             float64 `json:"van"`
+	TIR             float64 `json:"tir"`
+	TCEA            float64 `json:"tcea"`
+	CostoTotal      float64 `json:"costoTotal"`
+	MontoNeto       float64 `json:"montoNeto"`
+	MontoFinanciado float64 `json:"montoFinanciado"`
+	Cronograma      []Pago  `json:"cronograma"`
 }
 
 type Simulacion struct {

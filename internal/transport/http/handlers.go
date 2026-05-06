@@ -107,7 +107,9 @@ func (h *Handler) CreateSimulation(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, domain.ErrorResponse{Error: domain.NewError("validation_error", "errores de validacion", ""), Errors: errs})
 		return
 	}
-	sim, err := h.simSvc.Create(c, in)
+	usernameAny, _ := c.Get("username")
+	username, _ := usernameAny.(string)
+	sim, err := h.simSvc.CreateForUser(c, username, in)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, domain.ErrorResponse{Error: domain.NewError("internal_error", "error creando simulacion", "")})
 		return
@@ -116,8 +118,9 @@ func (h *Handler) CreateSimulation(c *gin.Context) {
 }
 
 func (h *Handler) ListSimulations(c *gin.Context) {
-	nombre := c.Query("cliente")
-	items, err := h.simSvc.ListByNombreCliente(c, nombre)
+	usernameAny, _ := c.Get("username")
+	username, _ := usernameAny.(string)
+	items, err := h.simSvc.ListByUser(c, username)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, domain.ErrorResponse{Error: domain.NewError("internal_error", "error listando simulaciones", "")})
 		return

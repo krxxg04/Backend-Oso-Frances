@@ -9,7 +9,7 @@ import (
 func TestCalculateSimulation(t *testing.T) {
 	in := domain.SimulacionInput{
 		NombreCliente: "Juan Perez", PrecioVehiculo: 50000, PorcentajeCuotaInicial: 10,
-		PlazoMeses: 24, TasaNominalAnual: 12, CapitalizacionPorAnio: 12, PeriodosGracia: 2, TipoGracia: domain.GraceParcial,
+		PlazoMeses: 24, TasaEfectivaAnual: 12, PeriodosPorAnio: 12, PeriodosGracia: 2, TipoGracia: domain.GraceParcial,
 	}
 	res := CalculateSimulation(in)
 	if len(res.Cronograma) != 24 {
