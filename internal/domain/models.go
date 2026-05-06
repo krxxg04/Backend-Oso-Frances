@@ -25,12 +25,15 @@ const (
 )
 
 type Vehicle struct {
-	Marca  string   `json:"marca,omitempty"`
-	Modelo string   `json:"modelo,omitempty"`
-	Anio   int      `json:"anio,omitempty"`
-	Tipo   string   `json:"tipo,omitempty"`
-	Precio float64  `json:"precio,omitempty"`
-	Moneda Currency `json:"moneda,omitempty"`
+	ID        string    `json:"id,omitempty"`
+	ClienteID string    `json:"clienteId,omitempty"`
+	Marca     string    `json:"marca,omitempty"`
+	Modelo    string    `json:"modelo,omitempty"`
+	Anio      int       `json:"anio,omitempty"`
+	Tipo      string    `json:"tipo,omitempty"`
+	Precio    float64   `json:"precio,omitempty"`
+	Moneda    Currency  `json:"moneda,omitempty"`
+	CreadoEn  time.Time `json:"creadoEn,omitempty"`
 }
 
 type Rate struct {
@@ -125,6 +128,16 @@ type Simulacion struct {
 	CreadoEn  time.Time        `json:"creadoEn"`
 	Input     SimulacionInput  `json:"input"`
 	Result    SimulacionResult `json:"result"`
+}
+
+type SimulacionFilter struct {
+	FechaDesde string   `json:"fechaDesde,omitempty"`
+	FechaHasta string   `json:"fechaHasta,omitempty"`
+	Moneda     Currency `json:"moneda,omitempty"`
+	PlazoMeses int      `json:"plazoMeses,omitempty"`
+	MontoMin   float64  `json:"montoMin,omitempty"`
+	MontoMax   float64  `json:"montoMax,omitempty"`
+	Vehiculo   string   `json:"vehiculo,omitempty"`
 }
 
 type Cliente struct {

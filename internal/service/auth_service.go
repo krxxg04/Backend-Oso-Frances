@@ -60,6 +60,10 @@ func (s *AuthService) Login(ctx context.Context, username, password string) (str
 	return acc, ref, nil
 }
 
+func (s *AuthService) GetUser(ctx context.Context, username string) (domain.User, bool, error) {
+	return s.users.GetByUsername(ctx, username)
+}
+
 func (s *AuthService) Register(ctx context.Context, username, password string) (string, string, error) {
 	return s.RegisterProfile(ctx, domain.User{Username: username}, password)
 }

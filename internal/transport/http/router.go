@@ -8,9 +8,9 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func NewRouter(cfg config.Config, authSvc *service.AuthService, simSvc *service.SimulationService) *gin.Engine {
+func NewRouter(cfg config.Config, authSvc *service.AuthService, simSvc *service.SimulationService, vehicleSvc *service.VehicleService) *gin.Engine {
 	r := gin.Default()
-	h := NewHandler(cfg, authSvc, simSvc, auth.NewLoginLimiter(cfg.LoginMaxPerMinute))
+	h := NewHandler(cfg, authSvc, simSvc, vehicleSvc, auth.NewLoginLimiter(cfg.LoginMaxPerMinute))
 
 	api := r.Group("/api/v1")
 	authGroup := api.Group("/auth")
@@ -25,6 +25,15 @@ func NewRouter(cfg config.Config, authSvc *service.AuthService, simSvc *service.
 	simGroup.GET("", h.ListSimulations)
 	simGroup.GET("/:id", h.GetSimulationByID)
 
+	vehicleGroup := api.Group("/vehiculos", RequireAuth(authSvc))
+	vehicleGroup.POST("", h.CreateVehicle)
+	vehicleGroup.GET("", h.ListVehicles)
+	vehicleGroup.GET("/:id", h.GetVehicleByID)
+
+	clientGroup := api.Group("/clientes", RequireAuth(authSvc))
+	clientGroup.GET("/me", h.GetClientProfile)
+
+	r.GET("/openapi.json", h.OpenAPI)
 	r.GET("/health", func(c *gin.Context) { c.JSON(200, gin.H{"ok": true}) })
 	return r
 }

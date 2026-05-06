@@ -57,14 +57,22 @@ POST /api/v1/auth/logout
 POST /api/v1/auth/refresh
 GET  /api/v1/auth/session
 
+POST /api/v1/vehiculos
+GET  /api/v1/vehiculos
+GET  /api/v1/vehiculos/:id
+
 POST /api/v1/simulaciones
 GET  /api/v1/simulaciones
 GET  /api/v1/simulaciones/:id
 
+GET  /api/v1/clientes/me
+
+GET  /openapi.json
 GET  /health
 ```
 
 `GET /api/v1/simulaciones/:id` solo devuelve simulaciones del usuario autenticado.
+`GET /api/v1/vehiculos/:id` aplica la misma regla de seguridad.
 
 ## Registro
 
@@ -106,3 +114,50 @@ GET  /health
 ```
 
 La respuesta incluye un `resumen` con monto financiado, cuota inicial, cuota mensual, cuota final balloon, total de intereses, total de seguros, total pagado, TCEA, VAN, TIR y fecha de finalizacion. Tambien incluye un `cronograma` con saldos, intereses, seguros y amortizacion por periodo.
+
+## Registrar vehiculo
+
+```json
+{
+  "marca": "Toyota",
+  "modelo": "Yaris",
+  "anio": 2025,
+  "tipo": "sedan",
+  "precio": 80000,
+  "moneda": "PEN"
+}
+```
+
+## Historial filtrable
+
+```text
+GET /api/v1/simulaciones?moneda=PEN&plazoMeses=36&vehiculo=Yaris&montoMin=50000&montoMax=90000
+```
+
+Filtros disponibles:
+
+- `fechaDesde` y `fechaHasta` con formato `YYYY-MM-DD`.
+- `moneda`: `PEN` o `USD`.
+- `plazoMeses`: `24` o `36`.
+- `montoMin` y `montoMax`.
+- `vehiculo`: busca por marca, modelo o tipo.
+
+## Documentacion tecnica
+
+El backend publica una especificacion OpenAPI basica en:
+
+```text
+GET /openapi.json
+```
+
+Esto permite mostrar en el informe los endpoints, modelos principales y parametros del historial sin depender de capturas manuales.
+
+## Mejoras frente a una calculadora simple
+
+- Login y registro con datos de identidad: username, email, DNI y nombre completo.
+- Catalogo de vehiculos por usuario.
+- Simulador con campos propios de Compra Inteligente: tasa nominal/efectiva, capitalizacion, plazo, cuota balloon, seguros, moneda y gracia.
+- Cronograma con periodo, fecha, saldo inicial, cuota, interes, seguros, amortizacion y saldo final.
+- Resumen financiero listo para UI: monto financiado, cuota inicial, cuota mensual, balloon, intereses, seguros, total pagado, TCEA, VAN y TIR.
+- Historial filtrable de simulaciones.
+- Seguridad por propietario en simulaciones y vehiculos.

@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"math"
+	"strings"
 	"time"
 )
 
@@ -35,6 +36,10 @@ func (s *SimulationService) CreateForUser(ctx context.Context, username string, 
 }
 
 func (s *SimulationService) ListByUser(ctx context.Context, username string) ([]domain.Simulacion, error) {
+	return s.ListByUserFiltered(ctx, username, domain.SimulacionFilter{})
+}
+
+func (s *SimulationService) ListByUserFiltered(ctx context.Context, username string, filter domain.SimulacionFilter) ([]domain.Simulacion, error) {
 	clientes, err := s.clientes.GetByNombre(ctx, username)
 	if err != nil {
 		return nil, err
@@ -45,7 +50,11 @@ func (s *SimulationService) ListByUser(ctx context.Context, username string) ([]
 		if err != nil {
 			return nil, err
 		}
-		out = append(out, items...)
+		for _, item := range items {
+			if matchesSimulationFilter(item, filter) {
+				out = append(out, item)
+			}
+		}
 	}
 	return out, nil
 }
@@ -363,6 +372,41 @@ func buildPago(mes int, fechaInicio time.Time, hasFecha bool, saldoInicial, segu
 		SaldoDeudor:         util.Round2(saldoFinal),
 		TipoGracia:          tipoGracia,
 	}
+}
+
+func matchesSimulationFilter(sim domain.Simulacion, filter domain.SimulacionFilter) bool {
+	if filter.Moneda != "" && sim.Input.Moneda != filter.Moneda {
+		return false
+	}
+	if filter.PlazoMeses > 0 && sim.Input.PlazoMeses != filter.PlazoMeses {
+		return false
+	}
+	if filter.MontoMin > 0 && sim.Result.MontoFinanciado < filter.MontoMin {
+		return false
+	}
+	if filter.MontoMax > 0 && sim.Result.MontoFinanciado > filter.MontoMax {
+		return false
+	}
+	if filter.FechaDesde != "" {
+		from, err := time.Parse("2006-01-02", filter.FechaDesde)
+		if err == nil && sim.CreadoEn.Before(from) {
+			return false
+		}
+	}
+	if filter.FechaHasta != "" {
+		to, err := time.Parse("2006-01-02", filter.FechaHasta)
+		if err == nil && sim.CreadoEn.After(to.AddDate(0, 0, 1)) {
+			return false
+		}
+	}
+	if filter.Vehiculo != "" {
+		needle := util.NormalizeKey(filter.Vehiculo)
+		haystack := util.NormalizeKey(strings.TrimSpace(sim.Input.Vehiculo.Marca + " " + sim.Input.Vehiculo.Modelo + " " + sim.Input.Vehiculo.Tipo))
+		if !strings.Contains(haystack, needle) {
+			return false
+		}
+	}
+	return true
 }
 
 func npv(r float64, flows []float64) float64 {

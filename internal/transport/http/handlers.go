@@ -6,6 +6,7 @@ import (
 	"backend-of/internal/domain"
 	"backend-of/internal/service"
 	"net/http"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
@@ -14,11 +15,12 @@ type Handler struct {
 	cfg     config.Config
 	authSvc *service.AuthService
 	simSvc  *service.SimulationService
+	vehSvc  *service.VehicleService
 	limiter *auth.LoginLimiter
 }
 
-func NewHandler(cfg config.Config, authSvc *service.AuthService, simSvc *service.SimulationService, limiter *auth.LoginLimiter) *Handler {
-	return &Handler{cfg: cfg, authSvc: authSvc, simSvc: simSvc, limiter: limiter}
+func NewHandler(cfg config.Config, authSvc *service.AuthService, simSvc *service.SimulationService, vehSvc *service.VehicleService, limiter *auth.LoginLimiter) *Handler {
+	return &Handler{cfg: cfg, authSvc: authSvc, simSvc: simSvc, vehSvc: vehSvc, limiter: limiter}
 }
 
 type loginReq struct {
@@ -129,7 +131,7 @@ func (h *Handler) CreateSimulation(c *gin.Context) {
 func (h *Handler) ListSimulations(c *gin.Context) {
 	usernameAny, _ := c.Get("username")
 	username, _ := usernameAny.(string)
-	items, err := h.simSvc.ListByUser(c, username)
+	items, err := h.simSvc.ListByUserFiltered(c, username, simulationFilterFromQuery(c))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, domain.ErrorResponse{Error: domain.NewError("internal_error", "error listando simulaciones", "")})
 		return
@@ -153,6 +155,71 @@ func (h *Handler) GetSimulationByID(c *gin.Context) {
 	c.JSON(http.StatusOK, sim)
 }
 
+func (h *Handler) CreateVehicle(c *gin.Context) {
+	var in domain.Vehicle
+	if err := c.ShouldBindJSON(&in); err != nil {
+		c.JSON(http.StatusBadRequest, domain.ErrorResponse{Error: domain.NewError("validation_error", "payload invalido", "")})
+		return
+	}
+	if errs := service.ValidateVehicle(in); len(errs) > 0 {
+		c.JSON(http.StatusBadRequest, domain.ErrorResponse{Error: domain.NewError("validation_error", "errores de validacion", ""), Errors: errs})
+		return
+	}
+	usernameAny, _ := c.Get("username")
+	username, _ := usernameAny.(string)
+	vehicle, err := h.vehSvc.CreateForUser(c, username, in)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, domain.ErrorResponse{Error: domain.NewError("internal_error", "error creando vehiculo", "")})
+		return
+	}
+	c.JSON(http.StatusCreated, vehicle)
+}
+
+func (h *Handler) ListVehicles(c *gin.Context) {
+	usernameAny, _ := c.Get("username")
+	username, _ := usernameAny.(string)
+	items, err := h.vehSvc.ListByUser(c, username)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, domain.ErrorResponse{Error: domain.NewError("internal_error", "error listando vehiculos", "")})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"items": items})
+}
+
+func (h *Handler) GetVehicleByID(c *gin.Context) {
+	usernameAny, _ := c.Get("username")
+	username, _ := usernameAny.(string)
+	vehicle, ok, err := h.vehSvc.GetByIDForUser(c, username, c.Param("id"))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, domain.ErrorResponse{Error: domain.NewError("internal_error", "error consultando vehiculo", "")})
+		return
+	}
+	if !ok {
+		c.JSON(http.StatusNotFound, domain.ErrorResponse{Error: domain.NewError("not_found", "vehiculo no encontrado", "id")})
+		return
+	}
+	c.JSON(http.StatusOK, vehicle)
+}
+
+func (h *Handler) GetClientProfile(c *gin.Context) {
+	usernameAny, _ := c.Get("username")
+	username, _ := usernameAny.(string)
+	user, ok, err := h.authSvc.GetUser(c, username)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, domain.ErrorResponse{Error: domain.NewError("internal_error", "error consultando cliente", "")})
+		return
+	}
+	if !ok {
+		c.JSON(http.StatusNotFound, domain.ErrorResponse{Error: domain.NewError("not_found", "cliente no encontrado", "username")})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"username": user.Username, "email": user.Email, "dni": user.DNI, "fullName": user.FullName, "role": user.Role})
+}
+
+func (h *Handler) OpenAPI(c *gin.Context) {
+	c.JSON(http.StatusOK, openAPISpec())
+}
+
 func (h *Handler) setAuthCookies(c *gin.Context, access, refresh string) {
 	c.SetSameSite(http.SameSiteLaxMode)
 	c.SetCookie("access_token", access, int(h.cfg.AccessTTL.Seconds()), "/", "", h.cfg.CookieSecure, true)
@@ -162,4 +229,34 @@ func (h *Handler) setAuthCookies(c *gin.Context, access, refresh string) {
 func (h *Handler) clearAuthCookies(c *gin.Context) {
 	c.SetCookie("access_token", "", -1, "/", "", h.cfg.CookieSecure, true)
 	c.SetCookie("refresh_token", "", -1, "/", "", h.cfg.CookieSecure, true)
+}
+
+func simulationFilterFromQuery(c *gin.Context) domain.SimulacionFilter {
+	return domain.SimulacionFilter{
+		FechaDesde: c.Query("fechaDesde"),
+		FechaHasta: c.Query("fechaHasta"),
+		Moneda:     domain.Currency(c.Query("moneda")),
+		PlazoMeses: queryInt(c, "plazoMeses"),
+		MontoMin:   queryFloat(c, "montoMin"),
+		MontoMax:   queryFloat(c, "montoMax"),
+		Vehiculo:   c.Query("vehiculo"),
+	}
+}
+
+func queryInt(c *gin.Context, key string) int {
+	raw := c.Query(key)
+	if raw == "" {
+		return 0
+	}
+	n, _ := strconv.Atoi(raw)
+	return n
+}
+
+func queryFloat(c *gin.Context, key string) float64 {
+	raw := c.Query(key)
+	if raw == "" {
+		return 0
+	}
+	n, _ := strconv.ParseFloat(raw, 64)
+	return n
 }

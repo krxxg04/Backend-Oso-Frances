@@ -58,6 +58,18 @@ create table if not exists clientes (
   creado_en timestamptz not null
 );
 
+create table if not exists vehicles (
+  id text primary key,
+  cliente_id text not null references clientes(id),
+  marca text not null,
+  modelo text not null,
+  anio integer not null default 0,
+  tipo text not null default '',
+  precio numeric not null,
+  moneda text not null,
+  creado_en timestamptz not null
+);
+
 create table if not exists simulaciones (
   id text primary key,
   cliente_id text not null references clientes(id),
@@ -68,6 +80,9 @@ create table if not exists simulaciones (
 
 create index if not exists idx_sim_cliente_creado
 on simulaciones(cliente_id, creado_en desc);
+
+create index if not exists idx_vehicles_cliente_creado
+on vehicles(cliente_id, creado_en desc);
 `
 	_, err := s.pool.Exec(ctx, q)
 	return err
@@ -220,6 +235,55 @@ func (s *Store) ListByClienteID(ctx context.Context, clienteID string) ([]domain
 			return nil, err
 		}
 		out = append(out, sim)
+	}
+	return out, rows.Err()
+}
+
+func (s *Store) CreateVehicle(ctx context.Context, vehicle domain.Vehicle) (domain.Vehicle, error) {
+	vehicle.ID = newID("veh")
+	vehicle.CreadoEn = time.Now().UTC()
+	_, err := s.pool.Exec(ctx, `
+insert into vehicles (id,cliente_id,marca,modelo,anio,tipo,precio,moneda,creado_en)
+values ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+		vehicle.ID, vehicle.ClienteID, vehicle.Marca, vehicle.Modelo, vehicle.Anio, vehicle.Tipo, vehicle.Precio, vehicle.Moneda, vehicle.CreadoEn)
+	if err != nil {
+		return domain.Vehicle{}, err
+	}
+	return vehicle, nil
+}
+
+func (s *Store) GetVehicleByID(ctx context.Context, id string) (domain.Vehicle, bool, error) {
+	var vehicle domain.Vehicle
+	err := s.pool.QueryRow(ctx, `
+select id,cliente_id,marca,modelo,anio,tipo,precio,moneda,creado_en
+from vehicles
+where id=$1`, id).Scan(&vehicle.ID, &vehicle.ClienteID, &vehicle.Marca, &vehicle.Modelo, &vehicle.Anio, &vehicle.Tipo, &vehicle.Precio, &vehicle.Moneda, &vehicle.CreadoEn)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return domain.Vehicle{}, false, nil
+		}
+		return domain.Vehicle{}, false, err
+	}
+	return vehicle, true, nil
+}
+
+func (s *Store) ListVehiclesByClienteID(ctx context.Context, clienteID string) ([]domain.Vehicle, error) {
+	rows, err := s.pool.Query(ctx, `
+select id,cliente_id,marca,modelo,anio,tipo,precio,moneda,creado_en
+from vehicles
+where cliente_id=$1
+order by creado_en desc`, clienteID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := make([]domain.Vehicle, 0)
+	for rows.Next() {
+		var vehicle domain.Vehicle
+		if err := rows.Scan(&vehicle.ID, &vehicle.ClienteID, &vehicle.Marca, &vehicle.Modelo, &vehicle.Anio, &vehicle.Tipo, &vehicle.Precio, &vehicle.Moneda, &vehicle.CreadoEn); err != nil {
+			return nil, err
+		}
+		out = append(out, vehicle)
 	}
 	return out, rows.Err()
 }
