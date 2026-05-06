@@ -39,10 +39,17 @@ func (s *Store) migrate(ctx context.Context) error {
 	q := `
 create table if not exists users (
   username text primary key,
+  email text,
+  dni text,
+  full_name text,
   password_hash text not null,
   role text not null,
   created_at timestamptz not null default now()
 );
+
+alter table users add column if not exists email text;
+alter table users add column if not exists dni text;
+alter table users add column if not exists full_name text;
 
 create table if not exists clientes (
   id text primary key,
@@ -81,7 +88,7 @@ func (s *Store) SeedIfEmpty(ctx context.Context, users []domain.User) error {
 		return nil
 	}
 	for _, u := range users {
-		_, err := s.pool.Exec(ctx, `insert into users (username, password_hash, role) values ($1,$2,$3)`, u.Username, u.PasswordHash, u.Role)
+		_, err := s.pool.Exec(ctx, `insert into users (username, email, dni, full_name, password_hash, role) values ($1,$2,$3,$4,$5,$6)`, u.Username, u.Email, u.DNI, u.FullName, u.PasswordHash, u.Role)
 		if err != nil {
 			return err
 		}
@@ -97,13 +104,13 @@ func (s *Store) CreateUser(ctx context.Context, user domain.User) error {
 	if exists {
 		return fmt.Errorf("user_exists")
 	}
-	_, err = s.pool.Exec(ctx, `insert into users (username, password_hash, role) values ($1,$2,$3)`, user.Username, user.PasswordHash, user.Role)
+	_, err = s.pool.Exec(ctx, `insert into users (username, email, dni, full_name, password_hash, role) values ($1,$2,$3,$4,$5,$6)`, user.Username, user.Email, user.DNI, user.FullName, user.PasswordHash, user.Role)
 	return err
 }
 
 func (s *Store) GetByUsername(ctx context.Context, username string) (domain.User, bool, error) {
 	var u domain.User
-	err := s.pool.QueryRow(ctx, `select username, password_hash, role from users where username=$1`, username).Scan(&u.Username, &u.PasswordHash, &u.Role)
+	err := s.pool.QueryRow(ctx, `select username, coalesce(email,''), coalesce(dni,''), coalesce(full_name,''), password_hash, role from users where username=$1`, username).Scan(&u.Username, &u.Email, &u.DNI, &u.FullName, &u.PasswordHash, &u.Role)
 	if err != nil {
 		if err == pgx.ErrNoRows {
 			return domain.User{}, false, nil

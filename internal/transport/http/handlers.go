@@ -28,6 +28,9 @@ type loginReq struct {
 
 type registerReq struct {
 	Username string `json:"username" binding:"required"`
+	Email    string `json:"email"`
+	DNI      string `json:"dni"`
+	FullName string `json:"fullName"`
 	Password string `json:"password" binding:"required"`
 }
 
@@ -56,11 +59,16 @@ func (h *Handler) Register(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, domain.ErrorResponse{Error: domain.NewError("validation_error", "username y password son requeridos", "")})
 		return
 	}
-	acc, ref, err := h.authSvc.Register(c, req.Username, req.Password)
+	acc, ref, err := h.authSvc.RegisterProfile(c, domain.User{
+		Username: req.Username,
+		Email:    req.Email,
+		DNI:      req.DNI,
+		FullName: req.FullName,
+	}, req.Password)
 	if err != nil {
 		switch err.Error() {
 		case "validation_error":
-			c.JSON(http.StatusBadRequest, domain.ErrorResponse{Error: domain.NewError("validation_error", "username minimo 3 chars, sin espacios; password minimo 6 chars", "")})
+			c.JSON(http.StatusBadRequest, domain.ErrorResponse{Error: domain.NewError("validation_error", "username minimo 3 chars, sin espacios; password minimo 6 chars; DNI 8 digitos; email valido", "")})
 		case "conflict":
 			c.JSON(http.StatusConflict, domain.ErrorResponse{Error: domain.NewError("conflict", "el username ya existe", "username")})
 		default:
@@ -69,7 +77,7 @@ func (h *Handler) Register(c *gin.Context) {
 		return
 	}
 	h.setAuthCookies(c, acc, ref)
-	c.JSON(http.StatusCreated, gin.H{"user": gin.H{"username": req.Username}})
+	c.JSON(http.StatusCreated, gin.H{"user": gin.H{"username": req.Username, "email": req.Email, "dni": req.DNI, "fullName": req.FullName}})
 }
 
 func (h *Handler) Logout(c *gin.Context) {
@@ -103,12 +111,13 @@ func (h *Handler) CreateSimulation(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, domain.ErrorResponse{Error: domain.NewError("validation_error", "payload invalido", "")})
 		return
 	}
+	usernameAny, _ := c.Get("username")
+	username, _ := usernameAny.(string)
+	in.NombreCliente = username
 	if errs := service.ValidateSimulationInput(in); len(errs) > 0 {
 		c.JSON(http.StatusBadRequest, domain.ErrorResponse{Error: domain.NewError("validation_error", "errores de validacion", ""), Errors: errs})
 		return
 	}
-	usernameAny, _ := c.Get("username")
-	username, _ := usernameAny.(string)
 	sim, err := h.simSvc.CreateForUser(c, username, in)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, domain.ErrorResponse{Error: domain.NewError("internal_error", "error creando simulacion", "")})
@@ -130,7 +139,9 @@ func (h *Handler) ListSimulations(c *gin.Context) {
 
 func (h *Handler) GetSimulationByID(c *gin.Context) {
 	id := c.Param("id")
-	sim, ok, err := h.simSvc.GetByID(c, id)
+	usernameAny, _ := c.Get("username")
+	username, _ := usernameAny.(string)
+	sim, ok, err := h.simSvc.GetByIDForUser(c, username, id)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, domain.ErrorResponse{Error: domain.NewError("internal_error", "error consultando simulacion", "")})
 		return

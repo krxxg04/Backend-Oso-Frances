@@ -21,6 +21,7 @@ func NewSimulationService(clientes repository.ClienteRepository, sims repository
 
 func (s *SimulationService) CreateForUser(ctx context.Context, username string, in domain.SimulacionInput) (domain.Simulacion, error) {
 	in.NombreCliente = username
+	in = normalizeSimulationInput(in)
 	if errs := ValidateSimulationInput(in); len(errs) > 0 {
 		return domain.Simulacion{}, errors.New("validation_error")
 	}
@@ -346,21 +347,21 @@ func buildPago(mes int, fechaInicio time.Time, hasFecha bool, saldoInicial, segu
 	}
 	cuotaTotal := cuotaCapitalInteres + seguro
 	return domain.Pago{
-		Mes:                mes,
-		Periodo:            mes,
-		Fecha:              fecha,
-		FechaPago:          fechaPago,
-		SaldoInicial:       util.Round2(saldoInicial),
-		Cuota:              util.Round2(cuotaTotal),
+		Mes:                 mes,
+		Periodo:             mes,
+		Fecha:               fecha,
+		FechaPago:           fechaPago,
+		SaldoInicial:        util.Round2(saldoInicial),
+		Cuota:               util.Round2(cuotaTotal),
 		CuotaCapitalInteres: util.Round2(cuotaCapitalInteres),
-		Interes:            util.Round2(interes),
-		SeguroVehicular:    util.Round2(seguroVehicular),
-		SeguroDesgravamen:  util.Round2(seguroDesgravamen),
-		Seguro:             util.Round2(seguro),
-		Amortizacion:       util.Round2(amortizacion),
-		SaldoFinal:         util.Round2(saldoFinal),
-		SaldoDeudor:        util.Round2(saldoFinal),
-		TipoGracia:         tipoGracia,
+		Interes:             util.Round2(interes),
+		SeguroVehicular:     util.Round2(seguroVehicular),
+		SeguroDesgravamen:   util.Round2(seguroDesgravamen),
+		Seguro:              util.Round2(seguro),
+		Amortizacion:        util.Round2(amortizacion),
+		SaldoFinal:          util.Round2(saldoFinal),
+		SaldoDeudor:         util.Round2(saldoFinal),
+		TipoGracia:          tipoGracia,
 	}
 }
 

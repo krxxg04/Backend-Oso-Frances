@@ -61,6 +61,15 @@ func (s *AuthService) Login(ctx context.Context, username, password string) (str
 }
 
 func (s *AuthService) Register(ctx context.Context, username, password string) (string, string, error) {
+	return s.RegisterProfile(ctx, domain.User{Username: username}, password)
+}
+
+func (s *AuthService) RegisterProfile(ctx context.Context, user domain.User, password string) (string, string, error) {
+	username := strings.TrimSpace(user.Username)
+	user.Username = username
+	user.Email = strings.TrimSpace(user.Email)
+	user.DNI = strings.TrimSpace(user.DNI)
+	user.FullName = strings.TrimSpace(user.FullName)
 	username = strings.TrimSpace(username)
 	if len(username) < 3 || len(password) < 6 {
 		return "", "", errors.New("validation_error")
@@ -68,21 +77,29 @@ func (s *AuthService) Register(ctx context.Context, username, password string) (
 	if strings.Contains(username, " ") {
 		return "", "", errors.New("validation_error")
 	}
+	if user.Email != "" && !strings.Contains(user.Email, "@") {
+		return "", "", errors.New("validation_error")
+	}
+	if user.DNI != "" && len(user.DNI) != 8 {
+		return "", "", errors.New("validation_error")
+	}
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		return "", "", err
 	}
-	if err := s.users.CreateUser(ctx, domain.User{
-		Username:     username,
-		PasswordHash: string(hash),
-		Role:         "user",
-	}); err != nil {
+	user.PasswordHash = string(hash)
+	user.Role = "user"
+	if err := s.users.CreateUser(ctx, user); err != nil {
 		if err.Error() == "user_exists" {
 			return "", "", errors.New("conflict")
 		}
 		return "", "", err
 	}
-	if _, err := s.clientes.GetOrCreateByNombre(ctx, username); err != nil {
+	clientName := user.FullName
+	if clientName == "" {
+		clientName = username
+	}
+	if _, err := s.clientes.GetOrCreateByNombre(ctx, clientName); err != nil {
 		return "", "", err
 	}
 	acc, err := s.tokens.Sign(username, "access", time.Now().Add(s.accessTTL))
