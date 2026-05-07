@@ -69,6 +69,16 @@ type Pago struct {
 
 type SimulacionInput struct {
 	NombreCliente          string    `json:"nombreCliente"`
+	BancoID                string    `json:"bancoId,omitempty"`
+	Moneda                 Currency  `json:"moneda,omitempty"`
+	Vehiculo               Vehicle   `json:"vehiculo,omitempty"`
+	FechaInicio            string    `json:"fechaInicio,omitempty"`
+	TipoTasa               RateType  `json:"tipoTasa,omitempty"`
+	TasaAnual              float64   `json:"tasaAnual,omitempty"`
+	FrecuenciaCapitalizacion int     `json:"frecuenciaCapitalizacion,omitempty"`
+	SeguroVehicularMensual float64   `json:"seguroVehicularMensual,omitempty"`
+	SeguroDesgravamenAnual float64   `json:"seguroDesgravamenAnual,omitempty"`
+	CuotaFinalBalloon      float64   `json:"cuotaFinalBalloon,omitempty"`
 	PrecioVehiculo         float64   `json:"precioVehiculo"`
 	PorcentajeCuotaInicial float64   `json:"porcentajeCuotaInicial"`
 	PlazoMeses             int       `json:"plazoMeses"`
@@ -79,6 +89,20 @@ type SimulacionInput struct {
 	ValorFinal             float64   `json:"valorFinal"`
 	CostosFinanciados      float64   `json:"costosFinanciados"`
 	CostosIniciales        float64   `json:"costosIniciales"`
+}
+
+type FinancialSummary struct {
+	MontoFinanciado   float64 `json:"montoFinanciado"`
+	CuotaInicial      float64 `json:"cuotaInicial"`
+	CuotaMensual      float64 `json:"cuotaMensual"`
+	CuotaFinalBalloon float64 `json:"cuotaFinalBalloon"`
+	TotalIntereses    float64 `json:"totalIntereses"`
+	TotalSeguros      float64 `json:"totalSeguros"`
+	TotalPagado       float64 `json:"totalPagado"`
+	VAN               float64 `json:"van"`
+	TIR               float64 `json:"tir"`
+	TCEA              float64 `json:"tcea"`
+	FechaFinalizacion string  `json:"fechaFinalizacion,omitempty"`
 }
 
 type SimulacionResult struct {
