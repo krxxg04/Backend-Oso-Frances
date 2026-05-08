@@ -9,8 +9,25 @@
       "role": "user"
     }
   },
-  "clientes": {},
-  "clientesByKey": {},
+  "clientes": {
+    "cli_20260508001330_1": {
+      "id": "cli_20260508001330_1",
+      "nombre": "admin",
+      "nombreKey": "admin",
+      "creadoEn": "2026-05-08T00:13:30.2497812Z"
+    },
+    "cli_20260508001330_2": {
+      "id": "cli_20260508001330_2",
+      "nombre": "user",
+      "nombreKey": "user",
+      "creadoEn": "2026-05-08T00:13:30.2502921Z"
+    }
+  },
+  "clientesByKey": {
+    "admin": "cli_20260508001330_1",
+    "user": "cli_20260508001330_2"
+  },
+  "vehicles": {},
   "simulaciones": {},
-  "seq": 0
+  "seq": 2
 }
