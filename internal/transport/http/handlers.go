@@ -7,6 +7,7 @@ import (
 	"backend-of/internal/service"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -225,14 +226,26 @@ func (h *Handler) OpenAPI(c *gin.Context) {
 }
 
 func (h *Handler) setAuthCookies(c *gin.Context, access, refresh string) {
-	c.SetSameSite(http.SameSiteLaxMode)
+	c.SetSameSite(cookieSameSiteMode(h.cfg.CookieSameSite))
 	c.SetCookie("access_token", access, int(h.cfg.AccessTTL.Seconds()), "/", "", h.cfg.CookieSecure, true)
 	c.SetCookie("refresh_token", refresh, int(h.cfg.RefreshTTL.Seconds()), "/", "", h.cfg.CookieSecure, true)
 }
 
 func (h *Handler) clearAuthCookies(c *gin.Context) {
+	c.SetSameSite(cookieSameSiteMode(h.cfg.CookieSameSite))
 	c.SetCookie("access_token", "", -1, "/", "", h.cfg.CookieSecure, true)
 	c.SetCookie("refresh_token", "", -1, "/", "", h.cfg.CookieSecure, true)
+}
+
+func cookieSameSiteMode(v string) http.SameSite {
+	switch strings.ToLower(strings.TrimSpace(v)) {
+	case "none":
+		return http.SameSiteNoneMode
+	case "strict":
+		return http.SameSiteStrictMode
+	default:
+		return http.SameSiteLaxMode
+	}
 }
 
 func simulationFilterFromQuery(c *gin.Context) domain.SimulacionFilter {

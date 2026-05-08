@@ -5,6 +5,7 @@ import (
 	"backend-of/internal/config"
 	"backend-of/internal/service"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -43,17 +44,17 @@ func NewRouter(cfg config.Config, authSvc *service.AuthService, simSvc *service.
 }
 
 func corsMiddleware(originsCSV string) gin.HandlerFunc {
-	allowed := map[string]struct{}{}
+	allowed := make([]string, 0)
 	for _, origin := range strings.Split(originsCSV, ",") {
 		o := strings.TrimSpace(origin)
 		if o != "" {
-			allowed[o] = struct{}{}
+			allowed = append(allowed, o)
 		}
 	}
 	return func(c *gin.Context) {
 		origin := c.GetHeader("Origin")
 		if origin != "" {
-			if _, ok := allowed[origin]; ok {
+			if isAllowedOrigin(origin, allowed) {
 				c.Header("Access-Control-Allow-Origin", origin)
 				c.Header("Vary", "Origin")
 				c.Header("Access-Control-Allow-Credentials", "true")
@@ -67,4 +68,32 @@ func corsMiddleware(originsCSV string) gin.HandlerFunc {
 		}
 		c.Next()
 	}
+}
+
+func isAllowedOrigin(origin string, allowed []string) bool {
+	u, err := url.Parse(origin)
+	if err != nil {
+		return false
+	}
+	host := strings.ToLower(u.Hostname())
+	if host == "localhost" || host == "127.0.0.1" {
+		// Allow local frontend on any port for development.
+		return u.Scheme == "http" || u.Scheme == "https"
+	}
+	for _, a := range allowed {
+		if origin == a {
+			return true
+		}
+		parsedAllowed, err := url.Parse(a)
+		if err != nil || parsedAllowed.Hostname() == "" || parsedAllowed.Scheme == "" {
+			continue
+		}
+		allowedHost := strings.ToLower(parsedAllowed.Hostname())
+		if strings.HasPrefix(allowedHost, "*.") &&
+			u.Scheme == parsedAllowed.Scheme &&
+			strings.HasSuffix(host, strings.TrimPrefix(allowedHost, "*.")) {
+			return true
+		}
+	}
+	return false
 }
