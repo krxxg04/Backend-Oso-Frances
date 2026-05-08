@@ -11,6 +11,7 @@ type Config struct {
 	JWTSecret         string
 	DataFilePath      string
 	DatabaseURL       string
+	FrontendOrigins   string
 	AccessTTL         time.Duration
 	RefreshTTL        time.Duration
 	CookieSecure      bool
@@ -23,6 +24,7 @@ func Load() Config {
 		JWTSecret:         getenv("JWT_SECRET", "change-this-secret"),
 		DataFilePath:      getenv("DATA_FILE", "./data.json"),
 		DatabaseURL:       os.Getenv("DATABASE_URL"),
+		FrontendOrigins:   getenv("FRONTEND_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000,http://127.0.0.1:3000"),
 		AccessTTL:         time.Duration(getenvInt("ACCESS_TTL_MIN", 15)) * time.Minute,
 		RefreshTTL:        time.Duration(getenvInt("REFRESH_TTL_HOURS", 24)) * time.Hour,
 		CookieSecure:      getenv("COOKIE_SECURE", "false") == "true",
