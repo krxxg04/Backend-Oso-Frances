@@ -1,0 +1,7 @@
+.git
+.gitignore
+README.md
+**/*_test.go
+tmp
+dist
+coverage.out

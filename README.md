@@ -22,6 +22,30 @@
 go run .
 ```
 
+## Docker
+Build de imagen:
+```bash
+docker build -t backend-of .
+```
+
+Ejecutar contenedor:
+```bash
+docker run --rm -p 8080:8080 \
+  -e PORT=8080 \
+  -e JWT_SECRET=change-this-secret \
+  -e DATABASE_URL="postgresql://usuario:password@host:5432/postgres" \
+  backend-of
+```
+
+Si no usaras PostgreSQL, puedes omitir `DATABASE_URL` y usar:
+```bash
+docker run --rm -p 8080:8080 \
+  -e PORT=8080 \
+  -e JWT_SECRET=change-this-secret \
+  -e DATA_FILE=/app/data.json \
+  backend-of
+```
+
 ## Tests
 ```bash
 go test ./...
