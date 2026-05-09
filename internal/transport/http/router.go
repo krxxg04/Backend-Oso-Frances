@@ -25,7 +25,6 @@ func NewRouter(cfg config.Config, authSvc *service.AuthService, simSvc *service.
 	authGroup.POST("/logout", h.Logout)
 	authGroup.POST("/refresh", h.Refresh)
 	authGroup.GET("/session", RequireAuth(authSvc), h.Session)
-	api.GET("/bancos", h.ListBanks)
 
 	simGroup := api.Group("/simulaciones", RequireAuth(authSvc))
 	simGroup.POST("", h.CreateSimulation)
