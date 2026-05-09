@@ -47,7 +47,7 @@ func NewRouter(cfg config.Config, authSvc *service.AuthService, simSvc *service.
 func corsMiddleware(originsCSV string) gin.HandlerFunc {
 	allowed := make([]string, 0)
 	for _, origin := range strings.Split(originsCSV, ",") {
-		o := strings.TrimSpace(origin)
+		o := normalizeOrigin(strings.TrimSpace(origin))
 		if o != "" {
 			allowed = append(allowed, o)
 		}
@@ -59,8 +59,8 @@ func corsMiddleware(originsCSV string) gin.HandlerFunc {
 				c.Header("Access-Control-Allow-Origin", origin)
 				c.Header("Vary", "Origin")
 				c.Header("Access-Control-Allow-Credentials", "true")
-				c.Header("Access-Control-Allow-Headers", "Content-Type, Authorization, Origin, Accept")
-				c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
+				c.Header("Access-Control-Allow-Headers", "Content-Type")
+				c.Header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
 			}
 		}
 		if c.Request.Method == http.MethodOptions {
@@ -72,13 +72,14 @@ func corsMiddleware(originsCSV string) gin.HandlerFunc {
 }
 
 func isAllowedOrigin(origin string, allowed []string) bool {
-	u, err := url.Parse(origin)
+	normalizedOrigin := normalizeOrigin(origin)
+	u, err := url.Parse(normalizedOrigin)
 	if err != nil {
 		return false
 	}
 	host := strings.ToLower(u.Hostname())
 	for _, a := range allowed {
-		if origin == a {
+		if normalizedOrigin == a {
 			return true
 		}
 		parsedAllowed, err := url.Parse(a)
@@ -93,4 +94,8 @@ func isAllowedOrigin(origin string, allowed []string) bool {
 		}
 	}
 	return false
+}
+
+func normalizeOrigin(origin string) string {
+	return strings.TrimRight(strings.TrimSpace(origin), "/")
 }
