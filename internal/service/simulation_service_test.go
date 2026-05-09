@@ -23,17 +23,17 @@ func TestCalculateSimulation(t *testing.T) {
 
 func TestCalculateSimulationWithVehicleInsuranceAndSummary(t *testing.T) {
 	in := domain.SimulacionInput{
-		NombreCliente:            "Ana Lopez",
-		Moneda:                   domain.CurrencyPEN,
-		Vehiculo:                 domain.Vehicle{Marca: "Toyota", Modelo: "Yaris", Anio: 2025, Precio: 80000},
-		PorcentajeCuotaInicial:   20,
-		PlazoMeses:               36,
-		TasaEfectivaAnual:        18,
-		PeriodosPorAnio:          12,
-		CuotaFinalBalloon:        24000,
-		SeguroVehicularMensual:   180,
-		SeguroDesgravamenAnual:   1.2,
-		FechaInicio:              "2026-06-01",
+		NombreCliente:          "Ana Lopez",
+		Moneda:                 domain.CurrencyPEN,
+		Vehiculo:               domain.Vehicle{Marca: "Toyota", Modelo: "Yaris", Anio: 2025, Precio: 80000},
+		PorcentajeCuotaInicial: 20,
+		PlazoMeses:             36,
+		TasaEfectivaAnual:      18,
+		PeriodosPorAnio:        12,
+		CuotaFinalBalloon:      24000,
+		SeguroVehicularMensual: 180,
+		SeguroDesgravamenAnual: 1.2,
+		FechaInicio:            "2026-06-01",
 	}
 
 	res := CalculateSimulation(in)

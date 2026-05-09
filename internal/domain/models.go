@@ -30,8 +30,8 @@ type Vehicle struct {
 }
 
 type Rate struct {
-	TasaEfectivaAnual  float64 `json:"tasaEfectivaAnual,omitempty"`
-	PeriodosPagoPorAnio int    `json:"periodosPagoPorAnio,omitempty"`
+	TasaEfectivaAnual   float64 `json:"tasaEfectivaAnual,omitempty"`
+	PeriodosPagoPorAnio int     `json:"periodosPagoPorAnio,omitempty"`
 }
 
 type Insurance struct {
@@ -78,25 +78,25 @@ type Pago struct {
 }
 
 type SimulacionInput struct {
-	NombreCliente            string    `json:"nombreCliente"`
-	BancoID                  string    `json:"bancoId,omitempty"`
-	Moneda                   Currency  `json:"moneda,omitempty"`
-	Vehiculo                 Vehicle   `json:"vehiculo,omitempty"`
-	FechaInicio              string    `json:"fechaInicio,omitempty"`
-	PrecioVehiculo           float64   `json:"precioVehiculo"`
-	PorcentajeCuotaInicial   float64   `json:"porcentajeCuotaInicial"`
-	PlazoMeses               int       `json:"plazoMeses"`
-	TasaAnual                float64   `json:"tasaAnual,omitempty"`
-	TasaEfectivaAnual        float64   `json:"tasaEfectivaAnual"`
-	PeriodosPorAnio          int       `json:"periodosPorAnio"`
-	PeriodosGracia           int       `json:"periodosGracia"`
-	TipoGracia               GraceType `json:"tipoGracia"`
-	ValorFinal               float64   `json:"valorFinal"`
-	CuotaFinalBalloon        float64   `json:"cuotaFinalBalloon,omitempty"`
-	SeguroVehicularMensual   float64   `json:"seguroVehicularMensual,omitempty"`
-	SeguroDesgravamenAnual   float64   `json:"seguroDesgravamenAnual,omitempty"`
-	CostosFinanciados        float64   `json:"costosFinanciados"`
-	CostosIniciales          float64   `json:"costosIniciales"`
+	NombreCliente          string    `json:"nombreCliente"`
+	BancoID                string    `json:"bancoId,omitempty"`
+	Moneda                 Currency  `json:"moneda,omitempty"`
+	Vehiculo               Vehicle   `json:"vehiculo,omitempty"`
+	FechaInicio            string    `json:"fechaInicio,omitempty"`
+	PrecioVehiculo         float64   `json:"precioVehiculo"`
+	PorcentajeCuotaInicial float64   `json:"porcentajeCuotaInicial"`
+	PlazoMeses             int       `json:"plazoMeses"`
+	TasaAnual              float64   `json:"tasaAnual,omitempty"`
+	TasaEfectivaAnual      float64   `json:"tasaEfectivaAnual"`
+	PeriodosPorAnio        int       `json:"periodosPorAnio"`
+	PeriodosGracia         int       `json:"periodosGracia"`
+	TipoGracia             GraceType `json:"tipoGracia"`
+	ValorFinal             float64   `json:"valorFinal"`
+	CuotaFinalBalloon      float64   `json:"cuotaFinalBalloon,omitempty"`
+	SeguroVehicularMensual float64   `json:"seguroVehicularMensual,omitempty"`
+	SeguroDesgravamenAnual float64   `json:"seguroDesgravamenAnual,omitempty"`
+	CostosFinanciados      float64   `json:"costosFinanciados"`
+	CostosIniciales        float64   `json:"costosIniciales"`
 }
 
 type FinancialSummary struct {
@@ -169,4 +169,3 @@ type User struct {
 	PasswordHash string `json:"-"`
 	Role         string `json:"role"`
 }
-
