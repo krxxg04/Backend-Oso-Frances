@@ -58,7 +58,7 @@ func corsMiddleware(originsCSV string) gin.HandlerFunc {
 				c.Header("Access-Control-Allow-Origin", origin)
 				c.Header("Vary", "Origin")
 				c.Header("Access-Control-Allow-Credentials", "true")
-				c.Header("Access-Control-Allow-Headers", "Content-Type, Authorization")
+				c.Header("Access-Control-Allow-Headers", "Content-Type, Authorization, Origin, Accept")
 				c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
 			}
 		}
@@ -76,10 +76,6 @@ func isAllowedOrigin(origin string, allowed []string) bool {
 		return false
 	}
 	host := strings.ToLower(u.Hostname())
-	if host == "localhost" || host == "127.0.0.1" {
-		// Allow local frontend on any port for development.
-		return u.Scheme == "http" || u.Scheme == "https"
-	}
 	for _, a := range allowed {
 		if origin == a {
 			return true
