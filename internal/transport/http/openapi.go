@@ -11,6 +11,7 @@ func openAPISpec() gin.H {
 			"description": "Backend para autenticacion, vehiculos, simulaciones, resumen financiero y cronograma de pagos.",
 		},
 		"paths": gin.H{
+			"/api/v1/bancos":        gin.H{"get": gin.H{"summary": "Listar bancos y condiciones referenciales para credito vehicular"}},
 			"/api/v1/auth/register": gin.H{"post": gin.H{"summary": "Registrar usuario con email, DNI y nombre completo"}},
 			"/api/v1/auth/login":    gin.H{"post": gin.H{"summary": "Iniciar sesion"}},
 			"/api/v1/auth/session":  gin.H{"get": gin.H{"summary": "Consultar sesion activa"}},
@@ -56,6 +57,7 @@ func openAPISpec() gin.H {
 				"SimulationInput": gin.H{
 					"type": "object",
 					"properties": gin.H{
+						"bancoId":                  gin.H{"type": "string"},
 						"moneda":                   gin.H{"type": "string"},
 						"vehiculo":                 gin.H{"$ref": "#/components/schemas/Vehicle"},
 						"porcentajeCuotaInicial":   gin.H{"type": "number"},
@@ -66,8 +68,32 @@ func openAPISpec() gin.H {
 						"cuotaFinalBalloon":        gin.H{"type": "number"},
 						"seguroVehicularMensual":   gin.H{"type": "number"},
 						"seguroDesgravamenAnual":   gin.H{"type": "number"},
+						"periodosGracia":           gin.H{"type": "integer"},
 						"tipoGracia":               gin.H{"type": "string", "enum": []string{"sin_gracia", "parcial", "total"}},
 						"fechaInicio":              gin.H{"type": "string", "format": "date"},
+					},
+				},
+				"BankOption": gin.H{
+					"type": "object",
+					"properties": gin.H{
+						"id":                               gin.H{"type": "string"},
+						"nombre":                           gin.H{"type": "string"},
+						"producto":                         gin.H{"type": "string"},
+						"moneda":                           gin.H{"type": "string", "enum": []string{"PEN", "USD"}},
+						"tipoTasa":                         gin.H{"type": "string", "enum": []string{"efectiva", "nominal"}},
+						"tasaAnual":                        gin.H{"type": "number"},
+						"seguroDesgravamenMensual":         gin.H{"type": "number"},
+						"seguroDesgravamenAnual":           gin.H{"type": "number"},
+						"seguroVehicularMensualPorcentaje": gin.H{"type": "number"},
+						"montoMin":                         gin.H{"type": "number"},
+						"montoMax":                         gin.H{"type": "number"},
+						"porcentajeCuotaInicialMin":        gin.H{"type": "number"},
+						"porcentajeCuotaInicialMax":        gin.H{"type": "number"},
+						"plazosMeses":                      gin.H{"type": "array", "items": gin.H{"type": "integer"}},
+						"periodosGraciaMax":                gin.H{"type": "integer"},
+						"fuente":                           gin.H{"type": "string"},
+						"fuenteUrl":                        gin.H{"type": "string"},
+						"notas":                            gin.H{"type": "string"},
 					},
 				},
 				"FinancialSummary": gin.H{

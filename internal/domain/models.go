@@ -49,6 +49,27 @@ type Insurance struct {
 	SeguroDesgravamenAnual float64 `json:"seguroDesgravamenAnual,omitempty"`
 }
 
+type BankOption struct {
+	ID                        string   `json:"id"`
+	Nombre                    string   `json:"nombre"`
+	Producto                  string   `json:"producto"`
+	Moneda                    Currency `json:"moneda"`
+	TipoTasa                  RateType `json:"tipoTasa"`
+	TasaAnual                 float64  `json:"tasaAnual"`
+	SeguroDesgravamenMensual  float64  `json:"seguroDesgravamenMensual"`
+	SeguroDesgravamenAnual    float64  `json:"seguroDesgravamenAnual"`
+	SeguroVehicularMensualPct float64  `json:"seguroVehicularMensualPorcentaje,omitempty"`
+	MontoMin                  float64  `json:"montoMin,omitempty"`
+	MontoMax                  float64  `json:"montoMax,omitempty"`
+	PorcentajeCuotaInicialMin float64  `json:"porcentajeCuotaInicialMin,omitempty"`
+	PorcentajeCuotaInicialMax float64  `json:"porcentajeCuotaInicialMax,omitempty"`
+	PlazosMeses               []int    `json:"plazosMeses,omitempty"`
+	PeriodosGraciaMax         int      `json:"periodosGraciaMax,omitempty"`
+	Fuente                    string   `json:"fuente,omitempty"`
+	FuenteURL                 string   `json:"fuenteUrl,omitempty"`
+	Notas                     string   `json:"notas,omitempty"`
+}
+
 type Pago struct {
 	Mes                 int       `json:"mes"`
 	Periodo             int       `json:"periodo"`
@@ -68,27 +89,27 @@ type Pago struct {
 }
 
 type SimulacionInput struct {
-	NombreCliente          string    `json:"nombreCliente"`
-	BancoID                string    `json:"bancoId,omitempty"`
-	Moneda                 Currency  `json:"moneda,omitempty"`
-	Vehiculo               Vehicle   `json:"vehiculo,omitempty"`
-	FechaInicio            string    `json:"fechaInicio,omitempty"`
-	TipoTasa               RateType  `json:"tipoTasa,omitempty"`
-	TasaAnual              float64   `json:"tasaAnual,omitempty"`
-	FrecuenciaCapitalizacion int     `json:"frecuenciaCapitalizacion,omitempty"`
-	SeguroVehicularMensual float64   `json:"seguroVehicularMensual,omitempty"`
-	SeguroDesgravamenAnual float64   `json:"seguroDesgravamenAnual,omitempty"`
-	CuotaFinalBalloon      float64   `json:"cuotaFinalBalloon,omitempty"`
-	PrecioVehiculo         float64   `json:"precioVehiculo"`
-	PorcentajeCuotaInicial float64   `json:"porcentajeCuotaInicial"`
-	PlazoMeses             int       `json:"plazoMeses"`
-	TasaEfectivaAnual      float64   `json:"tasaEfectivaAnual"`
-	PeriodosPorAnio        int       `json:"periodosPorAnio"`
-	PeriodosGracia         int       `json:"periodosGracia"`
-	TipoGracia             GraceType `json:"tipoGracia"`
-	ValorFinal             float64   `json:"valorFinal"`
-	CostosFinanciados      float64   `json:"costosFinanciados"`
-	CostosIniciales        float64   `json:"costosIniciales"`
+	NombreCliente            string    `json:"nombreCliente"`
+	BancoID                  string    `json:"bancoId,omitempty"`
+	Moneda                   Currency  `json:"moneda,omitempty"`
+	Vehiculo                 Vehicle   `json:"vehiculo,omitempty"`
+	FechaInicio              string    `json:"fechaInicio,omitempty"`
+	PrecioVehiculo           float64   `json:"precioVehiculo"`
+	PorcentajeCuotaInicial   float64   `json:"porcentajeCuotaInicial"`
+	PlazoMeses               int       `json:"plazoMeses"`
+	TipoTasa                 RateType  `json:"tipoTasa,omitempty"`
+	TasaAnual                float64   `json:"tasaAnual,omitempty"`
+	TasaEfectivaAnual        float64   `json:"tasaEfectivaAnual"`
+	FrecuenciaCapitalizacion int       `json:"frecuenciaCapitalizacion,omitempty"`
+	PeriodosPorAnio          int       `json:"periodosPorAnio"`
+	PeriodosGracia           int       `json:"periodosGracia"`
+	TipoGracia               GraceType `json:"tipoGracia"`
+	ValorFinal               float64   `json:"valorFinal"`
+	CuotaFinalBalloon        float64   `json:"cuotaFinalBalloon,omitempty"`
+	SeguroVehicularMensual   float64   `json:"seguroVehicularMensual,omitempty"`
+	SeguroDesgravamenAnual   float64   `json:"seguroDesgravamenAnual,omitempty"`
+	CostosFinanciados        float64   `json:"costosFinanciados"`
+	CostosIniciales          float64   `json:"costosIniciales"`
 }
 
 type FinancialSummary struct {
@@ -106,6 +127,7 @@ type FinancialSummary struct {
 }
 
 type SimulacionResult struct {
+	Banco           *BankOption      `json:"banco,omitempty"`
 	TasaPeriodo     float64          `json:"tasaPeriodo"`
 	Tasa            Rate             `json:"tasa"`
 	Seguros         Insurance        `json:"seguros"`
