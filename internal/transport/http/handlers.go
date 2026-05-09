@@ -30,11 +30,11 @@ type loginReq struct {
 }
 
 type registerReq struct {
-	Username string `json:"username" binding:"required"`
-	Email    string `json:"email"`
-	DNI      string `json:"dni"`
-	FullName string `json:"fullName"`
-	Password string `json:"password" binding:"required"`
+	Username       string `json:"username" binding:"required"`
+	Gmail          string `json:"gmail" binding:"required"`
+	DNI            string `json:"dni" binding:"required"`
+	Password       string `json:"password" binding:"required"`
+	RepeatPassword string `json:"repeatPassword" binding:"required"`
 }
 
 func (h *Handler) Login(c *gin.Context) {
@@ -59,14 +59,17 @@ func (h *Handler) Login(c *gin.Context) {
 func (h *Handler) Register(c *gin.Context) {
 	var req registerReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, domain.ErrorResponse{Error: domain.NewError("validation_error", "username y password son requeridos", "")})
+		c.JSON(http.StatusBadRequest, domain.ErrorResponse{Error: domain.NewError("validation_error", "username, gmail, dni, password y repeatPassword son requeridos", "")})
+		return
+	}
+	if req.Password != req.RepeatPassword {
+		c.JSON(http.StatusBadRequest, domain.ErrorResponse{Error: domain.NewError("validation_error", "password y repeatPassword deben coincidir", "repeatPassword")})
 		return
 	}
 	acc, ref, err := h.authSvc.RegisterProfile(c, domain.User{
 		Username: req.Username,
-		Email:    req.Email,
+		Email:    req.Gmail,
 		DNI:      req.DNI,
-		FullName: req.FullName,
 	}, req.Password)
 	if err != nil {
 		switch err.Error() {
@@ -80,7 +83,7 @@ func (h *Handler) Register(c *gin.Context) {
 		return
 	}
 	h.setAuthCookies(c, acc, ref)
-	c.JSON(http.StatusCreated, gin.H{"user": gin.H{"username": req.Username, "email": req.Email, "dni": req.DNI, "fullName": req.FullName}})
+	c.JSON(http.StatusCreated, gin.H{"user": gin.H{"username": req.Username, "gmail": req.Gmail, "dni": req.DNI}})
 }
 
 func (h *Handler) Logout(c *gin.Context) {

@@ -103,7 +103,7 @@ func TestVehicleAndSimulationHTTPFlow(t *testing.T) {
 
 func registerAndCookies(t *testing.T, router http.Handler) []*http.Cookie {
 	t.Helper()
-	body := `{"username":"cliente01","email":"cliente01@email.com","dni":"12345678","fullName":"Cliente Demo","password":"secret123"}`
+	body := `{"username":"cliente01","gmail":"cliente01@email.com","dni":"12345678","password":"secret123","repeatPassword":"secret123"}`
 	resp := performJSON(router, http.MethodPost, "/api/v1/auth/register", body, nil)
 	if resp.Code != http.StatusCreated {
 		t.Fatalf("register got %d: %s", resp.Code, resp.Body.String())
