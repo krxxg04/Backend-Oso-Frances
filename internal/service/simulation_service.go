@@ -127,6 +127,28 @@ func ValidateSimulationInput(in domain.SimulacionInput) []domain.APIError {
 	if in.Moneda != "" && in.Moneda != domain.CurrencyPEN && in.Moneda != domain.CurrencyUSD {
 		errs = append(errs, domain.NewError("validation_error", "moneda debe ser PEN o USD", "moneda"))
 	}
+	if in.BancoID != "" {
+		option, ok := FindBankOption(in.BancoID)
+		if !ok {
+			errs = append(errs, domain.NewError("validation_error", "bancoId no existe en el catalogo de bancos", "bancoId"))
+		} else {
+			if !containsTerm(option.PlazosMeses, in.PlazoMeses) {
+				errs = append(errs, domain.NewError("validation_error", "plazoMeses no esta disponible para el banco seleccionado", "plazoMeses"))
+			}
+			if option.MontoMin > 0 && in.PrecioVehiculo < option.MontoMin {
+				errs = append(errs, domain.NewError("validation_error", "precioVehiculo es menor al monto minimo del banco seleccionado", "precioVehiculo"))
+			}
+			if option.MontoMax > 0 && in.PrecioVehiculo > option.MontoMax {
+				errs = append(errs, domain.NewError("validation_error", "precioVehiculo supera el monto maximo del banco seleccionado", "precioVehiculo"))
+			}
+			if in.PorcentajeCuotaInicial < option.PorcentajeCuotaInicialMin || (option.PorcentajeCuotaInicialMax > 0 && in.PorcentajeCuotaInicial > option.PorcentajeCuotaInicialMax) {
+				errs = append(errs, domain.NewError("validation_error", "porcentajeCuotaInicial esta fuera del rango del banco seleccionado", "porcentajeCuotaInicial"))
+			}
+			if option.PeriodosGraciaMax > 0 && in.PeriodosGracia > option.PeriodosGraciaMax {
+				errs = append(errs, domain.NewError("validation_error", "periodosGracia supera el maximo del banco seleccionado", "periodosGracia"))
+			}
+		}
+	}
 	if in.PrecioVehiculo < 0 {
 		errs = append(errs, domain.NewError("validation_error", "precioVehiculo debe ser >= 0", "precioVehiculo"))
 	}
@@ -160,6 +182,12 @@ func ValidateSimulationInput(in domain.SimulacionInput) []domain.APIError {
 	if in.TipoGracia != "" && in.TipoGracia != domain.GraceNone && in.TipoGracia != domain.GraceTotal && in.TipoGracia != domain.GraceParcial {
 		errs = append(errs, domain.NewError("validation_error", "tipoGracia debe ser sin_gracia, total o parcial", "tipoGracia"))
 	}
+	if in.TipoGracia == domain.GraceNone && in.PeriodosGracia > 0 {
+		errs = append(errs, domain.NewError("validation_error", "periodosGracia debe ser 0 cuando tipoGracia es sin_gracia", "periodosGracia"))
+	}
+	if (in.TipoGracia == domain.GraceTotal || in.TipoGracia == domain.GraceParcial) && in.PeriodosGracia == 0 {
+		errs = append(errs, domain.NewError("validation_error", "periodosGracia debe ser mayor a 0 para gracia total o parcial", "periodosGracia"))
+	}
 	if in.ValorFinal < 0 {
 		errs = append(errs, domain.NewError("validation_error", "valorFinal debe ser >= 0", "valorFinal"))
 	}
@@ -180,6 +208,7 @@ func ValidateSimulationInput(in domain.SimulacionInput) []domain.APIError {
 
 func CalculateSimulation(in domain.SimulacionInput) domain.SimulacionResult {
 	in = normalizeSimulationInput(in)
+	bankOption := bankOptionForSimulation(in)
 	tea := annualEffectiveRate(in)
 	periodosPorAnio := in.PeriodosPorAnio
 	if periodosPorAnio <= 0 {
@@ -290,6 +319,7 @@ func CalculateSimulation(in domain.SimulacionInput) domain.SimulacionResult {
 	}
 
 	return domain.SimulacionResult{
+		Banco:           bankOption,
 		TasaPeriodo:     i,
 		Tasa:            domain.Rate{Tipo: in.TipoTasa, TasaAnual: in.TasaAnual, FrecuenciaCapitalizacion: in.FrecuenciaCapitalizacion, PeriodosPagoPorAnio: periodosPorAnio, TasaEfectivaAnualCalculada: tea},
 		Seguros:         domain.Insurance{SeguroVehicularMensual: in.SeguroVehicularMensual, SeguroDesgravamenAnual: in.SeguroDesgravamenAnual},
@@ -321,6 +351,7 @@ func normalizeSimulationInput(in domain.SimulacionInput) domain.SimulacionInput 
 	if in.Vehiculo.Moneda == "" {
 		in.Vehiculo.Moneda = in.Moneda
 	}
+	in = applyBankOption(in)
 	if in.PeriodosPorAnio <= 0 {
 		in.PeriodosPorAnio = 12
 	}

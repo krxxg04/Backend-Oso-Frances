@@ -228,6 +228,10 @@ func (h *Handler) OpenAPI(c *gin.Context) {
 	c.JSON(http.StatusOK, openAPISpec())
 }
 
+func (h *Handler) ListBankOptions(c *gin.Context) {
+	c.JSON(http.StatusOK, gin.H{"items": service.BankOptions()})
+}
+
 func (h *Handler) setAuthCookies(c *gin.Context, access, refresh string) {
 	c.SetSameSite(cookieSameSiteMode(h.cfg.CookieSameSite))
 	c.SetCookie("access_token", access, int(h.cfg.AccessTTL.Seconds()), "/", "", h.cfg.CookieSecure, true)

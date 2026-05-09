@@ -37,6 +37,11 @@ func TestVehicleAndSimulationHTTPFlow(t *testing.T) {
 
 	cookies := registerAndCookies(t, router)
 
+	banksResp := performJSON(router, http.MethodGet, "/api/v1/bancos", "", nil)
+	if banksResp.Code != http.StatusOK {
+		t.Fatalf("expected banks catalog ok, got %d", banksResp.Code)
+	}
+
 	vehicleBody := `{"marca":"Toyota","modelo":"Yaris","anio":2025,"tipo":"sedan","precio":80000,"moneda":"PEN"}`
 	vehicleResp := performJSON(router, http.MethodPost, "/api/v1/vehiculos", vehicleBody, cookies)
 	if vehicleResp.Code != http.StatusCreated {
@@ -88,6 +93,20 @@ func TestVehicleAndSimulationHTTPFlow(t *testing.T) {
 	}
 	if sim.Result.Cronograma[0].SaldoInicial <= 0 || sim.Result.Cronograma[0].Seguro <= 0 {
 		t.Fatalf("expected enriched schedule row")
+	}
+
+	bankSimulationBody := `{
+		"bancoId":"bbva-vehicular-sostenible",
+		"vehiculo":{"marca":"Toyota","modelo":"Yaris","anio":2025,"precio":90000},
+		"porcentajeCuotaInicial":20,
+		"plazoMeses":24,
+		"periodosPorAnio":12,
+		"periodosGracia":1,
+		"tipoGracia":"total"
+	}`
+	bankSimResp := performJSON(router, http.MethodPost, "/api/v1/simulaciones", bankSimulationBody, cookies)
+	if bankSimResp.Code != http.StatusCreated {
+		t.Fatalf("expected bank simulation created, got %d: %s", bankSimResp.Code, bankSimResp.Body.String())
 	}
 
 	filtered := performJSON(router, http.MethodGet, "/api/v1/simulaciones?moneda=PEN&plazoMeses=36&vehiculo=Yaris", "", cookies)

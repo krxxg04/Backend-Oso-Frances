@@ -67,6 +67,33 @@ func TestCalculateSimulationWithVehicleInsuranceAndSummary(t *testing.T) {
 	}
 }
 
+func TestCalculateSimulationWithBankOption(t *testing.T) {
+	in := domain.SimulacionInput{
+		NombreCliente:          "Cliente Banco",
+		BancoID:                "bbva-vehicular-sostenible",
+		PrecioVehiculo:         90000,
+		PorcentajeCuotaInicial: 20,
+		PlazoMeses:             24,
+		PeriodosGracia:         1,
+		TipoGracia:             domain.GraceTotal,
+	}
+
+	res := CalculateSimulation(in)
+
+	if res.Banco == nil || res.Banco.ID != "bbva-vehicular-sostenible" {
+		t.Fatalf("expected selected bank in result, got %+v", res.Banco)
+	}
+	if res.Tasa.Tipo != domain.RateEffective || math.Abs(res.Tasa.TasaAnual-11.49) > 0.001 {
+		t.Fatalf("expected bank effective rate, got %+v", res.Tasa)
+	}
+	if res.Seguros.SeguroDesgravamenAnual <= 0 {
+		t.Fatalf("expected bank desgravamen annual rate")
+	}
+	if len(res.Cronograma) != 24 || res.Cronograma[0].TipoGracia != domain.GraceTotal {
+		t.Fatalf("expected total grace in first payment")
+	}
+}
+
 func TestValidateSimulationInputCompraInteligente(t *testing.T) {
 	in := domain.SimulacionInput{
 		NombreCliente:          "Cliente",
@@ -79,5 +106,34 @@ func TestValidateSimulationInputCompraInteligente(t *testing.T) {
 	errs := ValidateSimulationInput(in)
 	if len(errs) == 0 {
 		t.Fatalf("expected validation error for unsupported term")
+	}
+}
+
+func TestValidateSimulationInputGraceOptions(t *testing.T) {
+	base := domain.SimulacionInput{
+		NombreCliente:          "Cliente",
+		PrecioVehiculo:         60000,
+		PorcentajeCuotaInicial: 10,
+		PlazoMeses:             24,
+		TasaAnual:              12,
+	}
+
+	validGraceTypes := []domain.GraceType{domain.GraceNone, domain.GraceParcial, domain.GraceTotal}
+	for _, graceType := range validGraceTypes {
+		in := base
+		in.TipoGracia = graceType
+		if graceType != domain.GraceNone {
+			in.PeriodosGracia = 1
+		}
+		if errs := ValidateSimulationInput(in); len(errs) > 0 {
+			t.Fatalf("expected %s to be valid, got %+v", graceType, errs)
+		}
+	}
+
+	invalid := base
+	invalid.TipoGracia = domain.GraceNone
+	invalid.PeriodosGracia = 1
+	if errs := ValidateSimulationInput(invalid); len(errs) == 0 {
+		t.Fatalf("expected grace periods with sin_gracia to be invalid")
 	}
 }

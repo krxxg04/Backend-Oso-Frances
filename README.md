@@ -83,6 +83,8 @@ POST /api/v1/auth/logout
 POST /api/v1/auth/refresh
 GET  /api/v1/auth/session
 
+GET  /api/v1/bancos
+
 POST /api/v1/vehiculos
 GET  /api/v1/vehiculos
 GET  /api/v1/vehiculos/:id
@@ -124,8 +126,11 @@ powershell -ExecutionPolicy Bypass -File .\scripts\render-keepalive.ps1 -Interva
 
 ## Crear simulacion
 
+Puedes enviar una tasa manual o seleccionar un banco con `bancoId`. Si se envia `bancoId`, el backend toma del catalogo la tasa efectiva anual y el seguro de desgravamen del banco.
+
 ```json
 {
+  "bancoId": "bbva-vehicular-sostenible",
   "moneda": "PEN",
   "vehiculo": {
     "marca": "Toyota",
@@ -150,6 +155,26 @@ powershell -ExecutionPolicy Bypass -File .\scripts\render-keepalive.ps1 -Interva
 ```
 
 La respuesta incluye un `resumen` con monto financiado, cuota inicial, cuota mensual, cuota final balloon, total de intereses, total de seguros, total pagado, TCEA, VAN, TIR y fecha de finalizacion. Tambien incluye un `cronograma` con saldos, intereses, seguros y amortizacion por periodo.
+
+Opciones validas de `tipoGracia`:
+
+- `sin_gracia`: sin periodo de gracia, `periodosGracia` debe ser `0`.
+- `parcial`: durante la gracia se paga interes y seguros, sin amortizar capital.
+- `total`: durante la gracia no se paga capital ni interes; el interes se capitaliza.
+
+## Catalogo de bancos
+
+```text
+GET /api/v1/bancos
+```
+
+Devuelve opciones referenciales para alimentar el combo del frontend, por ejemplo:
+
+- `bcp-compra-inteligente`
+- `bbva-vehicular-sostenible`
+- `scotiabank-vehicular`
+
+Cada opcion incluye banco, producto, moneda, `tasaAnual`, `seguroDesgravamenMensual`, `seguroDesgravamenAnual`, rangos de cuota inicial, plazos permitidos y fuente de la informacion.
 
 ## Registrar vehiculo
 
@@ -192,7 +217,8 @@ Esto permite mostrar en el informe los endpoints, modelos principales y parametr
 
 - Login y registro con datos de identidad: username, email, DNI y nombre completo.
 - Catalogo de vehiculos por usuario.
-- Simulador con campos propios de Compra Inteligente: tasa nominal/efectiva, capitalizacion, plazo, cuota balloon, seguros, moneda y gracia.
+- Catalogo de bancos con tasa referencial y seguro de desgravamen para precargar la simulacion.
+- Simulador con campos propios de Compra Inteligente: tasa nominal/efectiva, capitalizacion, plazo, cuota balloon, seguros, moneda y gracia total/parcial/sin gracia.
 - Cronograma con periodo, fecha, saldo inicial, cuota, interes, seguros, amortizacion y saldo final.
 - Resumen financiero listo para UI: monto financiado, cuota inicial, cuota mensual, balloon, intereses, seguros, total pagado, TCEA, VAN y TIR.
 - Historial filtrable de simulaciones.

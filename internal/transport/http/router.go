@@ -17,6 +17,8 @@ func NewRouter(cfg config.Config, authSvc *service.AuthService, simSvc *service.
 	h := NewHandler(cfg, authSvc, simSvc, vehicleSvc, auth.NewLoginLimiter(cfg.LoginMaxPerMinute))
 
 	api := r.Group("/api/v1")
+	api.GET("/bancos", h.ListBankOptions)
+
 	authGroup := api.Group("/auth")
 	authGroup.POST("/register", h.Register)
 	authGroup.POST("/login", h.Login)
