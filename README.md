@@ -14,8 +14,8 @@
 - `DATA_FILE` (default `./data.json`, solo fallback local)
 - `ACCESS_TTL_MIN` (default `15`)
 - `REFRESH_TTL_HOURS` (default `24`)
-- `COOKIE_SECURE` (default `false`)
-- `COOKIE_SAMESITE` (default `lax`, usar `none` en cross-site con HTTPS)
+- `COOKIE_SECURE` (default `true`)
+- `COOKIE_SAMESITE` (default `none`, requerido en cross-site con HTTPS)
 - `FRONTEND_ORIGINS` (CSV de origenes permitidos para CORS)
 - `LOGIN_MAX_PER_MIN` (default `10`)
 
@@ -71,7 +71,7 @@ El backend ahora representa mejor el producto Credito Vehicular "Compra Intelige
 - `Vehicle`: marca, modelo, anio, tipo, precio y moneda.
 - `CreditSimulation`: entrada del credito, resultado financiero y cronograma.
 - `PaymentSchedule`: periodo, fecha, saldo inicial, cuota, interes, seguros, amortizacion y saldo final.
-- `Rate`: tasa efectiva o nominal, frecuencia de capitalizacion y tasa efectiva anual calculada.
+- `Rate`: tasa efectiva anual y periodos de pago por anio.
 - `Insurance`: seguro vehicular mensual y seguro de desgravamen anual.
 
 ## Endpoints
@@ -141,9 +141,7 @@ Puedes enviar una tasa manual o seleccionar un banco con `bancoId`. Si se envia 
   },
   "porcentajeCuotaInicial": 20,
   "plazoMeses": 36,
-  "tipoTasa": "nominal",
-  "tasaAnual": 18,
-  "frecuenciaCapitalizacion": 12,
+  "tasaEfectivaAnual": 18,
   "periodosPorAnio": 12,
   "cuotaFinalBalloon": 24000,
   "seguroVehicularMensual": 180,
@@ -174,7 +172,7 @@ Devuelve opciones referenciales para alimentar el combo del frontend, por ejempl
 - `bbva-vehicular-sostenible`
 - `scotiabank-vehicular`
 
-Cada opcion incluye banco, producto, moneda, `tasaAnual`, `seguroDesgravamenMensual`, `seguroDesgravamenAnual`, rangos de cuota inicial, plazos permitidos y fuente de la informacion.
+Cada opcion incluye banco, producto, moneda, `tasaEfectivaAnual`, `seguroDesgravamenMensual`, `seguroDesgravamenAnual`, rangos de cuota inicial, plazos permitidos y fuente de la informacion.
 
 ## Registrar vehiculo
 
@@ -218,7 +216,7 @@ Esto permite mostrar en el informe los endpoints, modelos principales y parametr
 - Login y registro con datos de identidad: username, email, DNI y nombre completo.
 - Catalogo de vehiculos por usuario.
 - Catalogo de bancos con tasa referencial y seguro de desgravamen para precargar la simulacion.
-- Simulador con campos propios de Compra Inteligente: tasa nominal/efectiva, capitalizacion, plazo, cuota balloon, seguros, moneda y gracia total/parcial/sin gracia.
+- Simulador con campos propios de Compra Inteligente: tasa efectiva anual, plazo, cuota balloon, seguros, moneda y gracia total/parcial/sin gracia.
 - Cronograma con periodo, fecha, saldo inicial, cuota, interes, seguros, amortizacion y saldo final.
 - Resumen financiero listo para UI: monto financiado, cuota inicial, cuota mensual, balloon, intereses, seguros, total pagado, TCEA, VAN y TIR.
 - Historial filtrable de simulaciones.
