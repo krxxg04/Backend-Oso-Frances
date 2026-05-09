@@ -25,11 +25,11 @@ func Load() Config {
 		JWTSecret:         getenv("JWT_SECRET", "change-this-secret"),
 		DataFilePath:      getenv("DATA_FILE", "./data.json"),
 		DatabaseURL:       os.Getenv("DATABASE_URL"),
-		FrontendOrigins:   getenv("FRONTEND_ORIGINS", "https://oso-frances.vercel.app,https://www.oso-frances.vercel.app,http://localhost:4321"),
-		CookieSameSite:    getenv("COOKIE_SAMESITE", "lax"),
+		FrontendOrigins:   getenv("FRONTEND_ORIGINS", "https://oso-frances.vercel.app,https://www.oso-frances.vercel.app,http://localhost:4321,http://localhost:4321/"),
+		CookieSameSite:    getenv("COOKIE_SAMESITE", "none"),
 		AccessTTL:         time.Duration(getenvInt("ACCESS_TTL_MIN", 15)) * time.Minute,
 		RefreshTTL:        time.Duration(getenvInt("REFRESH_TTL_HOURS", 24)) * time.Hour,
-		CookieSecure:      getenv("COOKIE_SECURE", "false") == "true",
+		CookieSecure:      getenv("COOKIE_SECURE", "true") == "true",
 		LoginMaxPerMinute: getenvInt("LOGIN_MAX_PER_MIN", 10),
 	}
 }
