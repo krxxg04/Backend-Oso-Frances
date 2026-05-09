@@ -111,10 +111,6 @@ func (h *Handler) Session(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"authenticated": true, "user": gin.H{"username": u}})
 }
 
-func (h *Handler) ListBanks(c *gin.Context) {
-	c.JSON(http.StatusOK, gin.H{"items": service.ListMockBanks()})
-}
-
 func (h *Handler) CreateSimulation(c *gin.Context) {
 	var in domain.SimulacionInput
 	if err := c.ShouldBindJSON(&in); err != nil {

@@ -16,47 +16,8 @@ type SimulationService struct {
 	sims     repository.SimulacionRepository
 }
 
-var mockBanks = []domain.Banco{
-	{ID: "bcp", Nombre: "BCP", TEAReferencial: 12.5},
-	{ID: "bbva", Nombre: "BBVA", TEAReferencial: 13.2},
-	{ID: "interbank", Nombre: "Interbank", TEAReferencial: 11.9},
-	{ID: "scotiabank", Nombre: "Scotiabank", TEAReferencial: 12.8},
-	{ID: "pichincha", Nombre: "Banco Pichincha", TEAReferencial: 13.0},
-}
-
 func NewSimulationService(clientes repository.ClienteRepository, sims repository.SimulacionRepository) *SimulationService {
 	return &SimulationService{clientes: clientes, sims: sims}
-}
-
-func ListMockBanks() []domain.Banco {
-	out := make([]domain.Banco, len(mockBanks))
-	copy(out, mockBanks)
-	return out
-}
-
-func FindMockBankByID(id string) (domain.Banco, bool) {
-	for _, b := range mockBanks {
-		if b.ID == id {
-			return b, true
-		}
-	}
-	return domain.Banco{}, false
-}
-
-func applyBankRules(in domain.SimulacionInput) (domain.SimulacionInput, []domain.APIError) {
-	if in.BancoID == "" {
-		return in, nil
-	}
-	bank, ok := FindMockBankByID(in.BancoID)
-	if !ok {
-		return in, []domain.APIError{
-			domain.NewError("validation_error", "bancoId invalido", "bancoId"),
-		}
-	}
-	if in.TasaEfectivaAnual <= 0 {
-		in.TasaEfectivaAnual = bank.TEAReferencial
-	}
-	return in, nil
 }
 
 func (s *SimulationService) CreateForUser(ctx context.Context, username string, in domain.SimulacionInput) (domain.Simulacion, error) {
@@ -164,14 +125,8 @@ func ValidateSimulationInput(in domain.SimulacionInput) []domain.APIError {
 	if in.PlazoMeses != 24 && in.PlazoMeses != 36 {
 		errs = append(errs, domain.NewError("validation_error", "plazoMeses debe ser 24 o 36 para Compra Inteligente", "plazoMeses"))
 	}
-	if in.TipoTasa != "" && in.TipoTasa != domain.RateEffective && in.TipoTasa != domain.RateNominal {
-		errs = append(errs, domain.NewError("validation_error", "tipoTasa debe ser efectiva o nominal", "tipoTasa"))
-	}
 	if in.TasaAnual < 0 || in.TasaEfectivaAnual < 0 {
-		errs = append(errs, domain.NewError("validation_error", "la tasa anual debe ser >= 0", "tasaAnual"))
-	}
-	if in.TipoTasa == domain.RateNominal && in.FrecuenciaCapitalizacion < 1 {
-		errs = append(errs, domain.NewError("validation_error", "frecuenciaCapitalizacion debe ser >= 1 cuando la tasa es nominal", "frecuenciaCapitalizacion"))
+		errs = append(errs, domain.NewError("validation_error", "la tasa efectiva anual debe ser >= 0", "tasaEfectivaAnual"))
 	}
 	if in.PeriodosPorAnio < 1 {
 		errs = append(errs, domain.NewError("validation_error", "periodosPorAnio debe ser >= 1", "periodosPorAnio"))
@@ -321,7 +276,7 @@ func CalculateSimulation(in domain.SimulacionInput) domain.SimulacionResult {
 	return domain.SimulacionResult{
 		Banco:           bankOption,
 		TasaPeriodo:     i,
-		Tasa:            domain.Rate{Tipo: in.TipoTasa, TasaAnual: in.TasaAnual, FrecuenciaCapitalizacion: in.FrecuenciaCapitalizacion, PeriodosPagoPorAnio: periodosPorAnio, TasaEfectivaAnualCalculada: tea},
+		Tasa:            domain.Rate{TasaEfectivaAnual: tea, PeriodosPagoPorAnio: periodosPorAnio},
 		Seguros:         domain.Insurance{SeguroVehicularMensual: in.SeguroVehicularMensual, SeguroDesgravamenAnual: in.SeguroDesgravamenAnual},
 		CuotaBase:       util.Round2(cuotaBase),
 		VAN:             van,
@@ -355,14 +310,8 @@ func normalizeSimulationInput(in domain.SimulacionInput) domain.SimulacionInput 
 	if in.PeriodosPorAnio <= 0 {
 		in.PeriodosPorAnio = 12
 	}
-	if in.TipoTasa == "" {
-		in.TipoTasa = domain.RateEffective
-	}
 	if in.TasaAnual == 0 {
 		in.TasaAnual = in.TasaEfectivaAnual
-	}
-	if in.FrecuenciaCapitalizacion <= 0 {
-		in.FrecuenciaCapitalizacion = in.PeriodosPorAnio
 	}
 	if in.TipoGracia == "" {
 		in.TipoGracia = domain.GraceNone
@@ -377,15 +326,11 @@ func normalizeSimulationInput(in domain.SimulacionInput) domain.SimulacionInput 
 
 func annualEffectiveRate(in domain.SimulacionInput) float64 {
 	rate := in.TasaAnual
+	if rate == 0 {
+		rate = in.TasaEfectivaAnual
+	}
 	if rate > 1 {
 		rate = rate / 100
-	}
-	if in.TipoTasa == domain.RateNominal {
-		frequency := in.FrecuenciaCapitalizacion
-		if frequency <= 0 {
-			frequency = 12
-		}
-		return math.Pow(1+rate/float64(frequency), float64(frequency)) - 1
 	}
 	return rate
 }

@@ -13,8 +13,7 @@ func BankOptions() []domain.BankOption {
 			Nombre:                    "BCP",
 			Producto:                  "Credito Vehicular Compra Inteligente",
 			Moneda:                    domain.CurrencyPEN,
-			TipoTasa:                  domain.RateEffective,
-			TasaAnual:                 12.35,
+			TasaEfectivaAnual:         12.35,
 			SeguroDesgravamenMensual:  0.050,
 			MontoMin:                  15000,
 			PorcentajeCuotaInicialMin: 0,
@@ -30,8 +29,7 @@ func BankOptions() []domain.BankOption {
 			Nombre:                    "BBVA",
 			Producto:                  "Prestamo Vehicular Sostenible",
 			Moneda:                    domain.CurrencyPEN,
-			TipoTasa:                  domain.RateEffective,
-			TasaAnual:                 11.49,
+			TasaEfectivaAnual:         11.49,
 			SeguroDesgravamenMensual:  0.069,
 			MontoMin:                  28800,
 			PorcentajeCuotaInicialMin: 0,
@@ -46,8 +44,7 @@ func BankOptions() []domain.BankOption {
 			Nombre:                    "Scotiabank",
 			Producto:                  "Credito Vehicular",
 			Moneda:                    domain.CurrencyPEN,
-			TipoTasa:                  domain.RateEffective,
-			TasaAnual:                 15.99,
+			TasaEfectivaAnual:         15.99,
 			SeguroDesgravamenMensual:  0.1045,
 			SeguroVehicularMensualPct: 0.5064,
 			MontoMin:                  28800,
@@ -89,9 +86,8 @@ func applyBankOption(in domain.SimulacionInput) domain.SimulacionInput {
 		return in
 	}
 	in.Moneda = option.Moneda
-	in.TipoTasa = option.TipoTasa
-	in.TasaAnual = option.TasaAnual
-	in.TasaEfectivaAnual = option.TasaAnual
+	in.TasaAnual = option.TasaEfectivaAnual
+	in.TasaEfectivaAnual = option.TasaEfectivaAnual
 	in.SeguroDesgravamenAnual = option.SeguroDesgravamenAnual
 	if in.SeguroVehicularMensual == 0 && option.SeguroVehicularMensualPct > 0 && in.PrecioVehiculo > 0 {
 		in.SeguroVehicularMensual = in.PrecioVehiculo * (option.SeguroVehicularMensualPct / 100)
