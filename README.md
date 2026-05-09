@@ -15,6 +15,8 @@
 - `ACCESS_TTL_MIN` (default `15`)
 - `REFRESH_TTL_HOURS` (default `24`)
 - `COOKIE_SECURE` (default `false`)
+- `COOKIE_SAMESITE` (default `lax`, usar `none` en cross-site con HTTPS)
+- `FRONTEND_ORIGINS` (CSV de origenes permitidos para CORS)
 - `LOGIN_MAX_PER_MIN` (default `10`)
 
 ## Ejecutar
@@ -103,11 +105,21 @@ GET  /health
 ```json
 {
   "username": "cliente01",
-  "email": "cliente01@email.com",
+  "gmail": "cliente01@email.com",
   "dni": "12345678",
-  "fullName": "Cliente Demo",
-  "password": "secret123"
+  "password": "secret123",
+  "repeatPassword": "secret123"
 }
+```
+
+## Monitor + Redeploy (Render)
+
+Script: `scripts/render-keepalive.ps1`
+
+```powershell
+$env:HEALTH_URL="https://backend-oso-frances.onrender.com/health"
+$env:RENDER_DEPLOY_HOOK_URL="https://api.render.com/deploy/srv-xxxx?key=xxxx"
+powershell -ExecutionPolicy Bypass -File .\scripts\render-keepalive.ps1 -IntervalSeconds 300 -FailureThreshold 3
 ```
 
 ## Crear simulacion
