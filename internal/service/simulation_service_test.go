@@ -28,9 +28,7 @@ func TestCalculateSimulationWithVehicleInsuranceAndSummary(t *testing.T) {
 		Vehiculo:                 domain.Vehicle{Marca: "Toyota", Modelo: "Yaris", Anio: 2025, Precio: 80000},
 		PorcentajeCuotaInicial:   20,
 		PlazoMeses:               36,
-		TipoTasa:                 domain.RateNominal,
-		TasaAnual:                18,
-		FrecuenciaCapitalizacion: 12,
+		TasaEfectivaAnual:        18,
 		PeriodosPorAnio:          12,
 		CuotaFinalBalloon:        24000,
 		SeguroVehicularMensual:   180,
@@ -55,8 +53,8 @@ func TestCalculateSimulationWithVehicleInsuranceAndSummary(t *testing.T) {
 	if res.TotalSeguros <= 0 {
 		t.Fatalf("expected insurance total > 0")
 	}
-	if res.Tasa.Tipo != domain.RateNominal {
-		t.Fatalf("expected nominal rate metadata")
+	if math.Abs(res.Tasa.TasaEfectivaAnual-0.18) > 0.001 {
+		t.Fatalf("expected effective annual rate metadata")
 	}
 	first := res.Cronograma[0]
 	if first.Fecha != "2026-07-01" {
@@ -83,7 +81,7 @@ func TestCalculateSimulationWithBankOption(t *testing.T) {
 	if res.Banco == nil || res.Banco.ID != "bbva-vehicular-sostenible" {
 		t.Fatalf("expected selected bank in result, got %+v", res.Banco)
 	}
-	if res.Tasa.Tipo != domain.RateEffective || math.Abs(res.Tasa.TasaAnual-11.49) > 0.001 {
+	if math.Abs(res.Tasa.TasaEfectivaAnual-0.1149) > 0.001 {
 		t.Fatalf("expected bank effective rate, got %+v", res.Tasa)
 	}
 	if res.Seguros.SeguroDesgravamenAnual <= 0 {

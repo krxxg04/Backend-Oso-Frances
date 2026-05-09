@@ -17,13 +17,6 @@ const (
 	CurrencyUSD Currency = "USD"
 )
 
-type RateType string
-
-const (
-	RateEffective RateType = "efectiva"
-	RateNominal   RateType = "nominal"
-)
-
 type Vehicle struct {
 	ID        string    `json:"id,omitempty"`
 	ClienteID string    `json:"clienteId,omitempty"`
@@ -37,11 +30,8 @@ type Vehicle struct {
 }
 
 type Rate struct {
-	Tipo                       RateType `json:"tipo,omitempty"`
-	TasaAnual                  float64  `json:"tasaAnual,omitempty"`
-	FrecuenciaCapitalizacion   int      `json:"frecuenciaCapitalizacion,omitempty"`
-	PeriodosPagoPorAnio        int      `json:"periodosPagoPorAnio,omitempty"`
-	TasaEfectivaAnualCalculada float64  `json:"tasaEfectivaAnualCalculada,omitempty"`
+	TasaEfectivaAnual  float64 `json:"tasaEfectivaAnual,omitempty"`
+	PeriodosPagoPorAnio int    `json:"periodosPagoPorAnio,omitempty"`
 }
 
 type Insurance struct {
@@ -54,8 +44,7 @@ type BankOption struct {
 	Nombre                    string   `json:"nombre"`
 	Producto                  string   `json:"producto"`
 	Moneda                    Currency `json:"moneda"`
-	TipoTasa                  RateType `json:"tipoTasa"`
-	TasaAnual                 float64  `json:"tasaAnual"`
+	TasaEfectivaAnual         float64  `json:"tasaEfectivaAnual"`
 	SeguroDesgravamenMensual  float64  `json:"seguroDesgravamenMensual"`
 	SeguroDesgravamenAnual    float64  `json:"seguroDesgravamenAnual"`
 	SeguroVehicularMensualPct float64  `json:"seguroVehicularMensualPorcentaje,omitempty"`
@@ -97,10 +86,8 @@ type SimulacionInput struct {
 	PrecioVehiculo           float64   `json:"precioVehiculo"`
 	PorcentajeCuotaInicial   float64   `json:"porcentajeCuotaInicial"`
 	PlazoMeses               int       `json:"plazoMeses"`
-	TipoTasa                 RateType  `json:"tipoTasa,omitempty"`
 	TasaAnual                float64   `json:"tasaAnual,omitempty"`
 	TasaEfectivaAnual        float64   `json:"tasaEfectivaAnual"`
-	FrecuenciaCapitalizacion int       `json:"frecuenciaCapitalizacion,omitempty"`
 	PeriodosPorAnio          int       `json:"periodosPorAnio"`
 	PeriodosGracia           int       `json:"periodosGracia"`
 	TipoGracia               GraceType `json:"tipoGracia"`
@@ -183,8 +170,3 @@ type User struct {
 	Role         string `json:"role"`
 }
 
-type Banco struct {
-	ID             string  `json:"id"`
-	Nombre         string  `json:"nombre"`
-	TEAReferencial float64 `json:"teaReferencial"`
-}
