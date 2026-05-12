@@ -16,47 +16,26 @@ type SimulationService struct {
 	sims     repository.SimulacionRepository
 }
 
-var mockBanks = []domain.Banco{
-	{ID: "bcp", Nombre: "BCP", TEAReferencial: 12.5},
-	{ID: "bbva", Nombre: "BBVA", TEAReferencial: 13.2},
-	{ID: "interbank", Nombre: "Interbank", TEAReferencial: 11.9},
-	{ID: "scotiabank", Nombre: "Scotiabank", TEAReferencial: 12.8},
-	{ID: "pichincha", Nombre: "Banco Pichincha", TEAReferencial: 13.0},
-}
-
 func NewSimulationService(clientes repository.ClienteRepository, sims repository.SimulacionRepository) *SimulationService {
 	return &SimulationService{clientes: clientes, sims: sims}
 }
 
 func ListMockBanks() []domain.Banco {
-	out := make([]domain.Banco, len(mockBanks))
-	copy(out, mockBanks)
+	options := BankOptions()
+	out := make([]domain.Banco, 0, len(options))
+	for _, option := range options {
+		out = append(out, domain.Banco{
+			ID:             option.ID,
+			Nombre:         option.Nombre,
+			TEAReferencial: option.TasaEfectivaAnual,
+		})
+	}
 	return out
 }
 
-func FindMockBankByID(id string) (domain.Banco, bool) {
-	for _, b := range mockBanks {
-		if b.ID == id {
-			return b, true
-		}
-	}
-	return domain.Banco{}, false
-}
-
-func applyBankRules(in domain.SimulacionInput) (domain.SimulacionInput, []domain.APIError) {
-	if in.BancoID == "" {
-		return in, nil
-	}
-	bank, ok := FindMockBankByID(in.BancoID)
-	if !ok {
-		return in, []domain.APIError{
-			domain.NewError("validation_error", "bancoId invalido", "bancoId"),
-		}
-	}
-	if in.TasaEfectivaAnual <= 0 {
-		in.TasaEfectivaAnual = bank.TEAReferencial
-	}
-	return in, nil
+func ApplySimulationRules(in domain.SimulacionInput) (domain.SimulacionInput, []domain.APIError) {
+	in = normalizeSimulationInput(in)
+	return in, ValidateSimulationInput(in)
 }
 
 func (s *SimulationService) CreateForUser(ctx context.Context, username string, in domain.SimulacionInput) (domain.Simulacion, error) {

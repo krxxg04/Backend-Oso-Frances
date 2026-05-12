@@ -14,7 +14,7 @@ func BankOptions() []domain.BankOption {
 			Producto:                  "Credito Vehicular Compra Inteligente",
 			Moneda:                    domain.CurrencyPEN,
 			TasaEfectivaAnual:         12.35,
-			SeguroDesgravamenMensual:  0.050,
+			SeguroDesgravamenMensual:  0.077,
 			MontoMin:                  15000,
 			PorcentajeCuotaInicialMin: 0,
 			PorcentajeCuotaInicialMax: 50,
@@ -22,7 +22,7 @@ func BankOptions() []domain.BankOption {
 			PeriodosGraciaMax:         3,
 			Fuente:                    "BCP / Comparabien",
 			FuenteURL:                 "https://www.viabcp.com/creditos/credito-vehicular/simulador-vehicular/",
-			Notas:                     "TEA referencial del simulador BCP. El seguro de desgravamen se mantiene como valor editable para sustentarlo con tarifario vigente.",
+			Notas:                     "Seguro desgravamen mensual referencial aplicado sobre saldo segun referencia comercial.",
 		}),
 		buildBankOption(domain.BankOption{
 			ID:                        "bbva-vehicular-sostenible",
@@ -37,7 +37,7 @@ func BankOptions() []domain.BankOption {
 			PlazosMeses:               []int{24, 36},
 			Fuente:                    "BBVA Peru",
 			FuenteURL:                 "https://www.bbva.pe/personas/productos/prestamos/credito-vehicular/prestamo-vehicular-sostenible.html",
-			Notas:                     "TEA y desgravamen mensual referenciales publicados por BBVA para el producto vehicular sostenible.",
+			Notas:                     "Seguro desgravamen mensual individual referencial de BBVA.",
 		}),
 		buildBankOption(domain.BankOption{
 			ID:                        "scotiabank-vehicular",
@@ -54,7 +54,7 @@ func BankOptions() []domain.BankOption {
 			PeriodosGraciaMax:         2,
 			Fuente:                    "Scotiabank Peru",
 			FuenteURL:                 "https://www.scotiabank.com.pe/Personas/Prestamos/Creditos/Vehicular",
-			Notas:                     "TEA maxima referencial; seguros publicados como primas mensuales.",
+			Notas:                     "Seguro desgravamen mensual referencial publicado para credito vehicular.",
 		}),
 	}
 }
