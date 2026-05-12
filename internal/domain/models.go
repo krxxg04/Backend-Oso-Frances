@@ -169,3 +169,9 @@ type User struct {
 	PasswordHash string `json:"-"`
 	Role         string `json:"role"`
 }
+
+type Banco struct {
+	ID             string  `json:"id"`
+	Nombre         string  `json:"nombre"`
+	TEAReferencial float64 `json:"teaReferencial"`
+}
