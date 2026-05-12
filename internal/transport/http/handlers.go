@@ -120,12 +120,17 @@ func (h *Handler) CreateSimulation(c *gin.Context) {
 	usernameAny, _ := c.Get("username")
 	username, _ := usernameAny.(string)
 	in.NombreCliente = username
-	if errs := service.ValidateSimulationInput(in); len(errs) > 0 {
+	in, errs := service.ApplySimulationRules(in)
+	if len(errs) > 0 {
 		c.JSON(http.StatusBadRequest, domain.ErrorResponse{Error: domain.NewError("validation_error", "errores de validacion", ""), Errors: errs})
 		return
 	}
 	sim, err := h.simSvc.CreateForUser(c, username, in)
 	if err != nil {
+		if err.Error() == "validation_error" {
+			c.JSON(http.StatusBadRequest, domain.ErrorResponse{Error: domain.NewError("validation_error", "errores de validacion", "")})
+			return
+		}
 		c.JSON(http.StatusInternalServerError, domain.ErrorResponse{Error: domain.NewError("internal_error", "error creando simulacion", "")})
 		return
 	}

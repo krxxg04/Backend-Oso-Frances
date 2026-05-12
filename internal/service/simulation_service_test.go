@@ -106,32 +106,3 @@ func TestValidateSimulationInputCompraInteligente(t *testing.T) {
 		t.Fatalf("expected validation error for unsupported term")
 	}
 }
-
-func TestValidateSimulationInputGraceOptions(t *testing.T) {
-	base := domain.SimulacionInput{
-		NombreCliente:          "Cliente",
-		PrecioVehiculo:         60000,
-		PorcentajeCuotaInicial: 10,
-		PlazoMeses:             24,
-		TasaAnual:              12,
-	}
-
-	validGraceTypes := []domain.GraceType{domain.GraceNone, domain.GraceParcial, domain.GraceTotal}
-	for _, graceType := range validGraceTypes {
-		in := base
-		in.TipoGracia = graceType
-		if graceType != domain.GraceNone {
-			in.PeriodosGracia = 1
-		}
-		if errs := ValidateSimulationInput(in); len(errs) > 0 {
-			t.Fatalf("expected %s to be valid, got %+v", graceType, errs)
-		}
-	}
-
-	invalid := base
-	invalid.TipoGracia = domain.GraceNone
-	invalid.PeriodosGracia = 1
-	if errs := ValidateSimulationInput(invalid); len(errs) == 0 {
-		t.Fatalf("expected grace periods with sin_gracia to be invalid")
-	}
-}

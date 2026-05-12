@@ -20,9 +20,28 @@ func NewSimulationService(clientes repository.ClienteRepository, sims repository
 	return &SimulationService{clientes: clientes, sims: sims}
 }
 
+func ListMockBanks() []domain.Banco {
+	options := BankOptions()
+	out := make([]domain.Banco, 0, len(options))
+	for _, option := range options {
+		out = append(out, domain.Banco{
+			ID:             option.ID,
+			Nombre:         option.Nombre,
+			TEAReferencial: option.TasaEfectivaAnual,
+		})
+	}
+	return out
+}
+
+func ApplySimulationRules(in domain.SimulacionInput) (domain.SimulacionInput, []domain.APIError) {
+	in = normalizeSimulationInput(in)
+	return in, ValidateSimulationInput(in)
+}
+
 func (s *SimulationService) CreateForUser(ctx context.Context, username string, in domain.SimulacionInput) (domain.Simulacion, error) {
 	in.NombreCliente = username
-	if errs := ValidateSimulationInput(in); len(errs) > 0 {
+	in, errs := ApplySimulationRules(in)
+	if len(errs) > 0 {
 		return domain.Simulacion{}, errors.New("validation_error")
 	}
 	res := CalculateSimulation(in)
@@ -346,6 +365,14 @@ func periodicRate(annual float64, periodsPerYear int) float64 {
 		periodsPerYear = 12
 	}
 	return math.Pow(1+annual, 1/float64(periodsPerYear)) - 1
+}
+
+func annualEffectiveFromMonthlyPercent(monthlyPercent float64) float64 {
+	if monthlyPercent <= 0 {
+		return 0
+	}
+	monthlyRate := monthlyPercent / 100.0
+	return math.Pow(1+monthlyRate, 12) - 1
 }
 
 func parseStartDate(raw string) (time.Time, bool) {
