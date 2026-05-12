@@ -103,7 +103,7 @@ func buildBankOption(option domain.BankOption) domain.BankOption {
 }
 
 func monthlyPercentToAnnualPercent(monthlyPercent float64) float64 {
-	return (math.Pow(1+monthlyPercent/100, 12) - 1) * 100
+	return math.Pow(1+monthlyPercent/100, 12) - 1
 }
 
 func containsTerm(terms []int, term int) bool {
