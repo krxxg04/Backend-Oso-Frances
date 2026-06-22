@@ -41,6 +41,8 @@ func NewRouter(cfg config.Config, authSvc *services.AuthService, simSvc *service
 	r.GET("/openapi.json", h.OpenAPI)
 	r.GET("/swagger", swaggerUI)
 	r.GET("/swagger/", swaggerUI)
+	r.GET("/docs", swaggerUI)
+	r.GET("/docs/", swaggerUI)
 	r.GET("/health", func(c *gin.Context) { c.JSON(200, gin.H{"ok": true}) })
 	return r
 }

@@ -1,0 +1,33 @@
+{
+  "users": {
+    "admin": {
+      "username": "admin",
+      "role": "admin"
+    },
+    "user": {
+      "username": "user",
+      "role": "user"
+    }
+  },
+  "clientes": {
+    "cli_20260622234106_1": {
+      "id": "cli_20260622234106_1",
+      "nombre": "admin",
+      "nombreKey": "admin",
+      "creadoEn": "2026-06-22T23:41:06.5487412Z"
+    },
+    "cli_20260622234106_2": {
+      "id": "cli_20260622234106_2",
+      "nombre": "user",
+      "nombreKey": "user",
+      "creadoEn": "2026-06-22T23:41:06.5487412Z"
+    }
+  },
+  "clientesByKey": {
+    "admin": "cli_20260622234106_1",
+    "user": "cli_20260622234106_2"
+  },
+  "vehicles": {},
+  "simulaciones": {},
+  "seq": 2
+}

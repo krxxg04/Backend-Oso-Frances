@@ -123,8 +123,13 @@ func TestVehicleAndSimulationHTTPFlow(t *testing.T) {
 	if swagger.Code != http.StatusOK {
 		t.Fatalf("expected swagger ui ok, got %d", swagger.Code)
 	}
-	if !bytes.Contains(swagger.Body.Bytes(), []byte("/openapi.json")) {
-		t.Fatalf("expected swagger ui to reference openapi.json")
+	if !bytes.Contains(swagger.Body.Bytes(), []byte("Redoc.init('/openapi.json'")) {
+		t.Fatalf("expected docs ui to reference openapi.json")
+	}
+
+	docs := performJSON(router, http.MethodGet, "/docs", "", nil)
+	if docs.Code != http.StatusOK {
+		t.Fatalf("expected docs ui ok, got %d", docs.Code)
 	}
 }
 
