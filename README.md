@@ -7,10 +7,25 @@
 - Fallback local JSON (`data.json`) si no defines `DATABASE_URL`
 - Auth con cookies `httpOnly` firmadas (access + refresh)
 
+## Arquitectura
+- `cmd/backend`: entrypoint de la aplicacion.
+- `internal/domain/entities`: entidades, tipos y errores del dominio.
+- `internal/domain/repositories`: contratos de persistencia.
+- `internal/domain/shared`: helpers compartidos que no dependen de infraestructura.
+- `internal/application/services`: casos de uso y reglas de aplicacion.
+- `internal/application/common/config`: carga de configuracion y `.env.local`.
+- `internal/infrastructure/db`: adaptadores concretos para JSON local y PostgreSQL.
+- `internal/infrastructure/security`: firma y verificacion de tokens.
+- `internal/interface/api/rest`: router, handlers, middleware y OpenAPI.
+
 ## Variables de entorno
 - `PORT` (default `8080`)
 - `JWT_SECRET` (default `change-this-secret`)
 - `DATABASE_URL` (si existe, usa PostgreSQL)
+- `GOOGLE_CLIENT_ID`
+- `GOOGLE_CLIENT_SECRET`
+- `GOOGLE_REDIRECT_URI`
+- `GOOGLE_SCOPES` (CSV, por ejemplo `openid,email,profile`)
 - `DATA_FILE` (default `./data.json`, solo fallback local)
 - `ACCESS_TTL_MIN` (default `15`)
 - `REFRESH_TTL_HOURS` (default `24`)
@@ -19,9 +34,11 @@
 - `FRONTEND_ORIGINS` (CSV de origenes permitidos para CORS)
 - `LOGIN_MAX_PER_MIN` (default `10`)
 
+La aplicacion ahora carga automaticamente `.env.local` y luego `.env` si existen. Las variables ya definidas en el entorno no se sobreescriben.
+
 ## Ejecutar
 ```bash
-go run .
+go run ./cmd/backend
 ```
 
 ## Docker
@@ -96,6 +113,7 @@ GET  /api/v1/simulaciones/:id
 GET  /api/v1/clientes/me
 
 GET  /openapi.json
+GET  /swagger
 GET  /health
 ```
 
@@ -207,6 +225,12 @@ El backend publica una especificacion OpenAPI basica en:
 
 ```text
 GET /openapi.json
+```
+
+Y una UI Swagger para validarla visualmente en:
+
+```text
+GET /swagger
 ```
 
 Esto permite mostrar en el informe los endpoints, modelos principales y parametros del historial sin depender de capturas manuales.
