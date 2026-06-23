@@ -123,6 +123,29 @@ func (s *Store) GetByUsername(ctx context.Context, username string) (domain.User
 	return u, true, nil
 }
 
+func (s *Store) UpdateProfileByUsername(ctx context.Context, username string, update domain.UserProfileUpdate) (domain.User, bool, error) {
+	query := `
+update users
+set
+  email = coalesce($2, email),
+  dni = coalesce($3, dni),
+  full_name = coalesce($4, full_name),
+  picture_url = coalesce($5, picture_url),
+  updated_at = now()
+where username = $1
+returning id, username, coalesce(email,''), coalesce(dni,''), coalesce(full_name,''), coalesce(password_hash,''), coalesce(google_id,''), coalesce(picture_url,''), role`
+	var user domain.User
+	err := s.pool.QueryRow(ctx, query, username, nullableText(update.Email), nullableText(update.DNI), nullableText(update.FullName), nullableText(update.PictureURL)).
+		Scan(&user.ID, &user.Username, &user.Email, &user.DNI, &user.FullName, &user.PasswordHash, &user.GoogleID, &user.PictureURL, &user.Role)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return domain.User{}, false, nil
+		}
+		return domain.User{}, false, err
+	}
+	return user, true, nil
+}
+
 func (s *Store) Create(ctx context.Context, sim domain.Simulacion) (domain.Simulacion, error) {
 	sim.CreadoEn = time.Now().UTC()
 	inJSON, err := json.Marshal(sim.Input)
@@ -230,6 +253,23 @@ order by creado_en desc`, userID)
 		out = append(out, vehicle)
 	}
 	return out, rows.Err()
+}
+
+func (s *Store) UpdateVehicle(ctx context.Context, vehicle domain.Vehicle) (domain.Vehicle, bool, error) {
+	query := `
+update vehicles
+set marca=$2, modelo=$3, anio=$4, tipo=$5, precio=$6, moneda=$7
+where id=$1 and user_id=$8
+returning id,user_id,marca,modelo,anio,tipo,precio,moneda,creado_en`
+	err := s.pool.QueryRow(ctx, query, vehicle.ID, vehicle.Marca, vehicle.Modelo, vehicle.Anio, vehicle.Tipo, vehicle.Precio, vehicle.Moneda, vehicle.UserID).
+		Scan(&vehicle.ID, &vehicle.UserID, &vehicle.Marca, &vehicle.Modelo, &vehicle.Anio, &vehicle.Tipo, &vehicle.Precio, &vehicle.Moneda, &vehicle.CreadoEn)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return domain.Vehicle{}, false, nil
+		}
+		return domain.Vehicle{}, false, err
+	}
+	return vehicle, true, nil
 }
 
 func nullableText(value string) any {

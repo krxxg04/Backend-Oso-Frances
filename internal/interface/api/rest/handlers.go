@@ -36,6 +36,13 @@ type registerReq struct {
 	RepeatPassword string `json:"repeatPassword" binding:"required"`
 }
 
+type updateProfileReq struct {
+	Email      string `json:"email"`
+	DNI        string `json:"dni"`
+	FullName   string `json:"fullName"`
+	PictureURL string `json:"pictureUrl"`
+}
+
 func (h *Handler) Login(c *gin.Context) {
 	if !h.limiter.Allow(c.ClientIP()) {
 		c.JSON(http.StatusTooManyRequests, domain.ErrorResponse{Error: domain.NewError("rate_limited", "demasiados intentos de login", "")})
@@ -108,6 +115,35 @@ func (h *Handler) Refresh(c *gin.Context) {
 func (h *Handler) Session(c *gin.Context) {
 	u, _ := c.Get("username")
 	c.JSON(http.StatusOK, gin.H{"authenticated": true, "user": gin.H{"username": u}})
+}
+
+func (h *Handler) UpdateClientProfile(c *gin.Context) {
+	var req updateProfileReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, domain.ErrorResponse{Error: domain.NewError("validation_error", "payload invalido", "")})
+		return
+	}
+	usernameAny, _ := c.Get("username")
+	username, _ := usernameAny.(string)
+	user, ok, err := h.authSvc.UpdateProfile(c, username, domain.UserProfileUpdate{
+		Email:      req.Email,
+		DNI:        req.DNI,
+		FullName:   req.FullName,
+		PictureURL: req.PictureURL,
+	})
+	if err != nil {
+		if err.Error() == "validation_error" {
+			c.JSON(http.StatusBadRequest, domain.ErrorResponse{Error: domain.NewError("validation_error", "email o dni invalidos", "")})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, domain.ErrorResponse{Error: domain.NewError("internal_error", "error actualizando cliente", "")})
+		return
+	}
+	if !ok {
+		c.JSON(http.StatusNotFound, domain.ErrorResponse{Error: domain.NewError("not_found", "cliente no encontrado", "username")})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"username": user.Username, "email": user.Email, "dni": user.DNI, "fullName": user.FullName, "role": user.Role, "pictureUrl": user.PictureURL})
 }
 
 func (h *Handler) CreateSimulation(c *gin.Context) {
@@ -200,6 +236,30 @@ func (h *Handler) GetVehicleByID(c *gin.Context) {
 	vehicle, ok, err := h.vehSvc.GetByIDForUser(c, username, c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, domain.ErrorResponse{Error: domain.NewError("internal_error", "error consultando vehiculo", "")})
+		return
+	}
+	if !ok {
+		c.JSON(http.StatusNotFound, domain.ErrorResponse{Error: domain.NewError("not_found", "vehiculo no encontrado", "id")})
+		return
+	}
+	c.JSON(http.StatusOK, vehicle)
+}
+
+func (h *Handler) UpdateVehicle(c *gin.Context) {
+	var in domain.Vehicle
+	if err := c.ShouldBindJSON(&in); err != nil {
+		c.JSON(http.StatusBadRequest, domain.ErrorResponse{Error: domain.NewError("validation_error", "payload invalido", "")})
+		return
+	}
+	usernameAny, _ := c.Get("username")
+	username, _ := usernameAny.(string)
+	vehicle, ok, err := h.vehSvc.UpdateForUser(c, username, c.Param("id"), in)
+	if err != nil {
+		if err.Error() == "validation_error" {
+			c.JSON(http.StatusBadRequest, domain.ErrorResponse{Error: domain.NewError("validation_error", "errores de validacion", "")})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, domain.ErrorResponse{Error: domain.NewError("internal_error", "error actualizando vehiculo", "")})
 		return
 	}
 	if !ok {

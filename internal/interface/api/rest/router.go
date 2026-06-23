@@ -34,9 +34,11 @@ func NewRouter(cfg config.Config, authSvc *services.AuthService, simSvc *service
 	vehicleGroup.POST("", h.CreateVehicle)
 	vehicleGroup.GET("", h.ListVehicles)
 	vehicleGroup.GET("/:id", h.GetVehicleByID)
+	vehicleGroup.PUT("/:id", h.UpdateVehicle)
 
 	clientGroup := api.Group("/clientes", RequireAuth(authSvc))
 	clientGroup.GET("/me", h.GetClientProfile)
+	clientGroup.PUT("/me", h.UpdateClientProfile)
 
 	r.GET("/openapi.json", h.OpenAPI)
 	r.GET("/swagger", swaggerUI)
@@ -63,7 +65,7 @@ func corsMiddleware(originsCSV string) gin.HandlerFunc {
 				c.Header("Vary", "Origin")
 				c.Header("Access-Control-Allow-Credentials", "true")
 				c.Header("Access-Control-Allow-Headers", "Content-Type")
-				c.Header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+				c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, OPTIONS")
 			}
 		}
 		if c.Request.Method == http.MethodOptions {

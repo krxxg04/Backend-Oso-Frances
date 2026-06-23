@@ -59,6 +59,32 @@ func (s *VehicleService) GetByIDForUser(ctx context.Context, username, id string
 	return vehicle, vehicle.UserID == user.ID, nil
 }
 
+func (s *VehicleService) UpdateForUser(ctx context.Context, username, id string, vehicle domain.Vehicle) (domain.Vehicle, bool, error) {
+	if errs := ValidateVehicle(vehicle); len(errs) > 0 {
+		return domain.Vehicle{}, false, errors.New("validation_error")
+	}
+	user, ok, err := s.users.GetByUsername(ctx, username)
+	if err != nil {
+		return domain.Vehicle{}, false, err
+	}
+	if !ok {
+		return domain.Vehicle{}, false, nil
+	}
+	existing, ok, err := s.vehicles.GetVehicleByID(ctx, id)
+	if err != nil {
+		return domain.Vehicle{}, false, err
+	}
+	if !ok || existing.UserID != user.ID {
+		return domain.Vehicle{}, false, nil
+	}
+	vehicle = normalizeVehicle(vehicle)
+	vehicle.ID = existing.ID
+	vehicle.UserID = existing.UserID
+	vehicle.CreadoEn = existing.CreadoEn
+	updated, ok, err := s.vehicles.UpdateVehicle(ctx, vehicle)
+	return updated, ok, err
+}
+
 func ValidateVehicle(vehicle domain.Vehicle) []domain.APIError {
 	vehicle = normalizeVehicle(vehicle)
 	errs := make([]domain.APIError, 0)

@@ -130,6 +130,29 @@ func (s *Store) GetByUsername(_ context.Context, username string) (domain.User, 
 	return u, ok, nil
 }
 
+func (s *Store) UpdateProfileByUsername(_ context.Context, username string, update domain.UserProfileUpdate) (domain.User, bool, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	user, ok := s.data.Users[username]
+	if !ok {
+		return domain.User{}, false, nil
+	}
+	if update.Email != "" {
+		user.Email = update.Email
+	}
+	if update.DNI != "" {
+		user.DNI = update.DNI
+	}
+	if update.FullName != "" {
+		user.FullName = update.FullName
+	}
+	if update.PictureURL != "" {
+		user.PictureURL = update.PictureURL
+	}
+	s.data.Users[username] = user
+	return user, true, s.persistLocked()
+}
+
 func (s *Store) Create(_ context.Context, sim domain.Simulacion) (domain.Simulacion, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -186,4 +209,14 @@ func (s *Store) ListVehiclesByUserID(_ context.Context, userID string) ([]domain
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].CreadoEn.After(out[j].CreadoEn) })
 	return out, nil
+}
+
+func (s *Store) UpdateVehicle(_ context.Context, vehicle domain.Vehicle) (domain.Vehicle, bool, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if _, ok := s.data.Vehicles[vehicle.ID]; !ok {
+		return domain.Vehicle{}, false, nil
+	}
+	s.data.Vehicles[vehicle.ID] = vehicle
+	return vehicle, true, s.persistLocked()
 }

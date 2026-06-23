@@ -114,6 +114,20 @@ func openAPISpec() gin.H {
 						"404": errorResponse("Cliente no encontrado."),
 					},
 				},
+				"put": gin.H{
+					"tags":        []string{"Clientes"},
+					"operationId": "updateClientProfile",
+					"summary":     "Actualizar perfil del cliente autenticado",
+					"description": "Permite actualizar email, dni, nombre completo y pictureUrl del usuario autenticado.",
+					"security":    cookieSecurity(),
+					"requestBody": jsonBodyRef("#/components/schemas/ClientProfileUpdateRequest", true, clientProfileUpdateExample()),
+					"responses": gin.H{
+						"200": jsonResponse("Perfil actualizado.", "#/components/schemas/ClientProfile"),
+						"400": errorResponse("Payload invalido o datos inconsistentes."),
+						"401": errorResponse("Sesion invalida."),
+						"404": errorResponse("Cliente no encontrado."),
+					},
+				},
 			},
 			"/api/v1/vehiculos": gin.H{
 				"get": gin.H{
@@ -153,6 +167,23 @@ func openAPISpec() gin.H {
 					},
 					"responses": gin.H{
 						"200": jsonResponse("Vehiculo encontrado.", "#/components/schemas/Vehicle"),
+						"401": errorResponse("Sesion invalida."),
+						"404": errorResponse("Vehiculo no encontrado."),
+					},
+				},
+				"put": gin.H{
+					"tags":        []string{"Vehiculos"},
+					"operationId": "updateVehicle",
+					"summary":     "Actualizar vehiculo por ID",
+					"description": "Modifica los datos de un vehiculo perteneciente al usuario autenticado.",
+					"security":    cookieSecurity(),
+					"parameters": []gin.H{
+						pathParam("id", "ID del vehiculo."),
+					},
+					"requestBody": jsonBodyRef("#/components/schemas/VehicleCreateRequest", true, vehicleUpdateExample()),
+					"responses": gin.H{
+						"200": jsonResponse("Vehiculo actualizado.", "#/components/schemas/Vehicle"),
+						"400": errorResponse("Errores de validacion del vehiculo."),
 						"401": errorResponse("Sesion invalida."),
 						"404": errorResponse("Vehiculo no encontrado."),
 					},
@@ -311,11 +342,21 @@ func openAPISpec() gin.H {
 				"ClientProfile": gin.H{
 					"type": "object",
 					"properties": gin.H{
-						"username": gin.H{"type": "string", "example": "cliente01"},
-						"email":    gin.H{"type": "string", "example": "cliente01@email.com"},
-						"dni":      gin.H{"type": "string", "example": "12345678"},
-						"fullName": gin.H{"type": "string", "example": "Cliente Demo"},
-						"role":     gin.H{"type": "string", "example": "user"},
+						"username":   gin.H{"type": "string", "example": "cliente01"},
+						"email":      gin.H{"type": "string", "example": "cliente01@email.com"},
+						"dni":        gin.H{"type": "string", "example": "12345678"},
+						"fullName":   gin.H{"type": "string", "example": "Cliente Demo"},
+						"pictureUrl": gin.H{"type": "string", "example": "https://example.com/avatar.png"},
+						"role":       gin.H{"type": "string", "example": "user"},
+					},
+				},
+				"ClientProfileUpdateRequest": gin.H{
+					"type": "object",
+					"properties": gin.H{
+						"email":      gin.H{"type": "string", "example": "cliente01@email.com"},
+						"dni":        gin.H{"type": "string", "example": "12345678"},
+						"fullName":   gin.H{"type": "string", "example": "Cliente Demo"},
+						"pictureUrl": gin.H{"type": "string", "example": "https://example.com/avatar.png"},
 					},
 				},
 				"Vehicle": gin.H{
@@ -446,25 +487,27 @@ func openAPISpec() gin.H {
 					"type":     "object",
 					"required": []string{"porcentajeCuotaInicial", "plazoMeses"},
 					"properties": gin.H{
-						"nombreCliente":          gin.H{"type": "string", "example": "cliente01"},
-						"bancoId":                gin.H{"type": "string", "example": "bbva-vehicular-sostenible"},
-						"moneda":                 gin.H{"type": "string", "enum": []string{"PEN", "USD"}, "example": "PEN"},
-						"vehiculo":               gin.H{"$ref": "#/components/schemas/VehicleCreateRequest"},
-						"fechaInicio":            gin.H{"type": "string", "format": "date", "example": "2026-06-01"},
-						"precioVehiculo":         gin.H{"type": "number", "example": 80000},
-						"porcentajeCuotaInicial": gin.H{"type": "number", "example": 20},
-						"plazoMeses":             gin.H{"type": "integer", "enum": []int{24, 36}, "example": 36},
-						"tasaAnual":              gin.H{"type": "number", "example": 18},
-						"tasaEfectivaAnual":      gin.H{"type": "number", "example": 18},
-						"periodosPorAnio":        gin.H{"type": "integer", "example": 12},
-						"periodosGracia":         gin.H{"type": "integer", "example": 0},
-						"tipoGracia":             gin.H{"type": "string", "enum": []string{"sin_gracia", "parcial", "total"}, "example": "sin_gracia"},
-						"valorFinal":             gin.H{"type": "number", "example": 24000},
-						"cuotaFinalBalloon":      gin.H{"type": "number", "example": 24000},
-						"seguroVehicularMensual": gin.H{"type": "number", "example": 180},
-						"seguroDesgravamenAnual": gin.H{"type": "number", "example": 1.2},
-						"costosFinanciados":      gin.H{"type": "number", "example": 0},
-						"costosIniciales":        gin.H{"type": "number", "example": 0},
+						"nombreCliente":            gin.H{"type": "string", "example": "cliente01"},
+						"bancoId":                  gin.H{"type": "string", "example": "bbva-vehicular-sostenible"},
+						"moneda":                   gin.H{"type": "string", "enum": []string{"PEN", "USD"}, "example": "PEN"},
+						"vehiculo":                 gin.H{"$ref": "#/components/schemas/VehicleCreateRequest"},
+						"fechaInicio":              gin.H{"type": "string", "format": "date", "example": "2026-06-01"},
+						"precioVehiculo":           gin.H{"type": "number", "example": 80000},
+						"porcentajeCuotaInicial":   gin.H{"type": "number", "example": 20},
+						"plazoMeses":               gin.H{"type": "integer", "enum": []int{24, 36}, "example": 36},
+						"tasaAnual":                gin.H{"type": "number", "example": 18},
+						"tipoTasa":                 gin.H{"type": "string", "enum": []string{"efectiva", "nominal"}, "example": "nominal"},
+						"tasaEfectivaAnual":        gin.H{"type": "number", "example": 18},
+						"frecuenciaCapitalizacion": gin.H{"type": "integer", "example": 12},
+						"periodosPorAnio":          gin.H{"type": "integer", "example": 12},
+						"periodosGracia":           gin.H{"type": "integer", "example": 0},
+						"tipoGracia":               gin.H{"type": "string", "enum": []string{"sin_gracia", "parcial", "total"}, "example": "sin_gracia"},
+						"valorFinal":               gin.H{"type": "number", "example": 24000},
+						"cuotaFinalBalloon":        gin.H{"type": "number", "example": 24000},
+						"seguroVehicularMensual":   gin.H{"type": "number", "example": 180},
+						"seguroDesgravamenAnual":   gin.H{"type": "number", "example": 1.2},
+						"costosFinanciados":        gin.H{"type": "number", "example": 0},
+						"costosIniciales":          gin.H{"type": "number", "example": 0},
 					},
 				},
 				"Simulation": gin.H{
@@ -584,6 +627,26 @@ func vehicleExample() gin.H {
 		"tipo":   "sedan",
 		"precio": 80000,
 		"moneda": "PEN",
+	}
+}
+
+func vehicleUpdateExample() gin.H {
+	return gin.H{
+		"marca":  "Toyota",
+		"modelo": "Corolla Cross",
+		"anio":   2026,
+		"tipo":   "suv",
+		"precio": 95000,
+		"moneda": "PEN",
+	}
+}
+
+func clientProfileUpdateExample() gin.H {
+	return gin.H{
+		"email":      "cliente01@email.com",
+		"dni":        "12345678",
+		"fullName":   "Cliente Demo",
+		"pictureUrl": "https://example.com/avatar.png",
 	}
 }
 

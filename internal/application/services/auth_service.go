@@ -61,6 +61,21 @@ func (s *AuthService) GetUser(ctx context.Context, username string) (domain.User
 	return s.users.GetByUsername(ctx, username)
 }
 
+func (s *AuthService) UpdateProfile(ctx context.Context, username string, update domain.UserProfileUpdate) (domain.User, bool, error) {
+	update.Email = strings.TrimSpace(update.Email)
+	update.DNI = strings.TrimSpace(update.DNI)
+	update.FullName = strings.TrimSpace(update.FullName)
+	update.PictureURL = strings.TrimSpace(update.PictureURL)
+
+	if update.Email != "" && !strings.Contains(update.Email, "@") {
+		return domain.User{}, false, errors.New("validation_error")
+	}
+	if update.DNI != "" && len(update.DNI) != 8 {
+		return domain.User{}, false, errors.New("validation_error")
+	}
+	return s.users.UpdateProfileByUsername(ctx, username, update)
+}
+
 func (s *AuthService) Register(ctx context.Context, username, password string) (string, string, error) {
 	return s.RegisterProfile(ctx, domain.User{Username: username}, password)
 }
