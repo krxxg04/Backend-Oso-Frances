@@ -6,6 +6,8 @@ import (
 	"strings"
 )
 
+const minimumVehicleAmount = 2000.0
+
 func BankOptions() []domain.BankOption {
 	return []domain.BankOption{
 		buildBankOption(domain.BankOption{
@@ -60,7 +62,7 @@ func BankOptions() []domain.BankOption {
 }
 
 func FindBankOption(id string) (domain.BankOption, bool) {
-	needle := strings.TrimSpace(strings.ToLower(id))
+	needle := normalizedBankID(id)
 	if needle == "" {
 		return domain.BankOption{}, false
 	}
@@ -116,4 +118,14 @@ func containsTerm(terms []int, term int) bool {
 		}
 	}
 	return false
+}
+
+func normalizedBankID(id string) string {
+	needle := strings.TrimSpace(strings.ToLower(id))
+	switch needle {
+	case "", "manual", "sin-banco", "sin banco", "sin_banco", "none":
+		return ""
+	default:
+		return needle
+	}
 }

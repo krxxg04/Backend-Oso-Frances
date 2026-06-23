@@ -106,3 +106,44 @@ func TestValidateSimulationInputCompraInteligente(t *testing.T) {
 		t.Fatalf("expected validation error for unsupported term")
 	}
 }
+
+func TestValidateSimulationInputAllowsManualBankAndMinAmount2000(t *testing.T) {
+	in := domain.SimulacionInput{
+		NombreCliente:          "Cliente Manual",
+		BancoID:                "manual",
+		PrecioVehiculo:         8000,
+		Vehiculo:               domain.Vehicle{Marca: "Kia", Modelo: "Rio", Precio: 8000, Moneda: domain.CurrencyPEN},
+		Moneda:                 domain.CurrencyPEN,
+		PorcentajeCuotaInicial: 10,
+		PlazoMeses:             24,
+		TipoTasa:               "efectiva",
+		TasaEfectivaAnual:      12.5,
+		PeriodosPorAnio:        12,
+		TipoGracia:             domain.GraceNone,
+		SeguroDesgravamenAnual: 1.1,
+	}
+
+	errs := ValidateSimulationInput(in)
+	if len(errs) > 0 {
+		t.Fatalf("expected manual simulation with 8000 to be valid, got %+v", errs)
+	}
+}
+
+func TestValidateSimulationInputRejectsAmountBelow2000(t *testing.T) {
+	in := domain.SimulacionInput{
+		NombreCliente:          "Cliente Minimo",
+		PrecioVehiculo:         1999,
+		Vehiculo:               domain.Vehicle{Marca: "Kia", Modelo: "Picanto", Precio: 1999, Moneda: domain.CurrencyPEN},
+		Moneda:                 domain.CurrencyPEN,
+		PorcentajeCuotaInicial: 10,
+		PlazoMeses:             24,
+		TasaEfectivaAnual:      12,
+		PeriodosPorAnio:        12,
+		TipoGracia:             domain.GraceNone,
+	}
+
+	errs := ValidateSimulationInput(in)
+	if len(errs) == 0 {
+		t.Fatalf("expected validation error for amount below 2000")
+	}
+}

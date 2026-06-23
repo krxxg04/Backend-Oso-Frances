@@ -42,7 +42,7 @@ func TestVehicleAndSimulationHTTPFlow(t *testing.T) {
 		t.Fatalf("expected banks catalog ok, got %d", banksResp.Code)
 	}
 
-	vehicleBody := `{"marca":"Toyota","modelo":"Yaris","anio":2025,"tipo":"sedan","precio":80000,"moneda":"PEN"}`
+	vehicleBody := `{"marca":"Toyota","modelo":"Yaris","anio":2025,"tipo":"sedan","precio":8000,"moneda":"PEN"}`
 	vehicleResp := performJSON(router, http.MethodPost, "/api/v1/vehiculos", vehicleBody, cookies)
 	if vehicleResp.Code != http.StatusCreated {
 		t.Fatalf("expected vehicle created, got %d: %s", vehicleResp.Code, vehicleResp.Body.String())
@@ -89,8 +89,9 @@ func TestVehicleAndSimulationHTTPFlow(t *testing.T) {
 	}
 
 	simulationBody := `{
+		"bancoId":"manual",
 		"moneda":"PEN",
-		"vehiculo":{"marca":"Toyota","modelo":"Yaris","anio":2025,"precio":80000},
+		"vehiculo":{"marca":"Toyota","modelo":"Yaris","anio":2025,"precio":8000},
 		"porcentajeCuotaInicial":20,
 		"plazoMeses":36,
 		"tipoTasa":"nominal",
