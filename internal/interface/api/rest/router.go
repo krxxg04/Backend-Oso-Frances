@@ -65,9 +65,9 @@ func corsMiddleware(originsCSV string) gin.HandlerFunc {
 		if origin != "" {
 			if isAllowedOrigin(origin, allowed) {
 				c.Header("Access-Control-Allow-Origin", origin)
-				c.Header("Vary", "Origin")
+				c.Header("Vary", "Origin, Access-Control-Request-Method, Access-Control-Request-Headers")
 				c.Header("Access-Control-Allow-Credentials", "true")
-				c.Header("Access-Control-Allow-Headers", "Content-Type")
+				c.Header("Access-Control-Allow-Headers", allowedHeaders(c.GetHeader("Access-Control-Request-Headers")))
 				c.Header("Access-Control-Allow-Methods", "GET, POST, PUT, OPTIONS")
 			}
 		}
@@ -106,4 +106,11 @@ func isAllowedOrigin(origin string, allowed []string) bool {
 
 func normalizeOrigin(origin string) string {
 	return strings.TrimRight(strings.TrimSpace(origin), "/")
+}
+
+func allowedHeaders(requested string) string {
+	if strings.TrimSpace(requested) == "" {
+		return "Accept, Authorization, Content-Type, X-Requested-With"
+	}
+	return requested
 }
