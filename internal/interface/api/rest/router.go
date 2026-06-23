@@ -23,6 +23,8 @@ func NewRouter(cfg config.Config, authSvc *services.AuthService, simSvc *service
 	authGroup.POST("/login", h.Login)
 	authGroup.POST("/logout", h.Logout)
 	authGroup.POST("/refresh", h.Refresh)
+	authGroup.GET("/google/login", h.GoogleLogin)
+	authGroup.GET("/google/callback", h.GoogleCallback)
 	authGroup.GET("/session", RequireAuth(authSvc), h.Session)
 
 	simGroup := api.Group("/simulaciones", RequireAuth(authSvc))

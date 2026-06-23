@@ -130,6 +130,28 @@ func (s *Store) GetByUsername(_ context.Context, username string) (domain.User, 
 	return u, ok, nil
 }
 
+func (s *Store) GetByEmail(_ context.Context, email string) (domain.User, bool, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	for _, user := range s.data.Users {
+		if user.Email == email {
+			return user, true, nil
+		}
+	}
+	return domain.User{}, false, nil
+}
+
+func (s *Store) GetByGoogleID(_ context.Context, googleID string) (domain.User, bool, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	for _, user := range s.data.Users {
+		if user.GoogleID == googleID {
+			return user, true, nil
+		}
+	}
+	return domain.User{}, false, nil
+}
+
 func (s *Store) UpdateProfileByUsername(_ context.Context, username string, update domain.UserProfileUpdate) (domain.User, bool, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -148,6 +170,30 @@ func (s *Store) UpdateProfileByUsername(_ context.Context, username string, upda
 	}
 	if update.PictureURL != "" {
 		user.PictureURL = update.PictureURL
+	}
+	s.data.Users[username] = user
+	return user, true, s.persistLocked()
+}
+
+func (s *Store) LinkGoogleAccount(_ context.Context, username, googleID, email, fullName, pictureURL string) (domain.User, bool, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	user, ok := s.data.Users[username]
+	if !ok {
+		return domain.User{}, false, nil
+	}
+	user.GoogleID = googleID
+	if email != "" {
+		user.Email = email
+	}
+	if fullName != "" {
+		user.FullName = fullName
+	}
+	if pictureURL != "" {
+		user.PictureURL = pictureURL
+	}
+	if user.Role == "" {
+		user.Role = "user"
 	}
 	s.data.Users[username] = user
 	return user, true, s.persistLocked()

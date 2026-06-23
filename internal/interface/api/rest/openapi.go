@@ -54,6 +54,34 @@ func openAPISpec() gin.H {
 					},
 				},
 			},
+			"/api/v1/auth/google/login": gin.H{
+				"get": gin.H{
+					"tags":        []string{"Auth"},
+					"operationId": "startGoogleLogin",
+					"summary":     "Iniciar login con Google",
+					"description": "Redirige al usuario a Google OAuth para autenticarse o registrarse.",
+					"responses": gin.H{
+						"302": gin.H{"description": "Redireccion a Google OAuth."},
+						"501": errorResponse("Google OAuth no configurado."),
+					},
+				},
+			},
+			"/api/v1/auth/google/callback": gin.H{
+				"get": gin.H{
+					"tags":        []string{"Auth"},
+					"operationId": "handleGoogleCallback",
+					"summary":     "Callback de Google OAuth",
+					"description": "Procesa el code de Google, crea o vincula el usuario y emite cookies de sesion.",
+					"parameters": []gin.H{
+						queryParam("code", "string", "", "Codigo de autorizacion de Google."),
+						queryParam("state", "string", "", "State anti-CSRF generado por el backend."),
+					},
+					"responses": gin.H{
+						"302": gin.H{"description": "Redireccion al frontend con resultado del login."},
+						"501": errorResponse("Google OAuth no configurado."),
+					},
+				},
+			},
 			"/api/v1/auth/logout": gin.H{
 				"post": gin.H{
 					"tags":        []string{"Auth"},
