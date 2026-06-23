@@ -133,11 +133,11 @@ func ValidateSimulationInput(in domain.SimulacionInput) []domain.APIError {
 			}
 		}
 	}
-	if in.PrecioVehiculo < 0 {
-		errs = append(errs, domain.NewError("validation_error", "precioVehiculo debe ser >= 0", "precioVehiculo"))
+	if in.PrecioVehiculo < minimumVehicleAmount {
+		errs = append(errs, domain.NewError("validation_error", "precioVehiculo debe ser >= 2000", "precioVehiculo"))
 	}
-	if in.Vehiculo.Precio < 0 {
-		errs = append(errs, domain.NewError("validation_error", "vehiculo.precio debe ser >= 0", "vehiculo.precio"))
+	if in.Vehiculo.Precio < minimumVehicleAmount {
+		errs = append(errs, domain.NewError("validation_error", "vehiculo.precio debe ser >= 2000", "vehiculo.precio"))
 	}
 	if in.PorcentajeCuotaInicial < 0 || in.PorcentajeCuotaInicial > 100 {
 		errs = append(errs, domain.NewError("validation_error", "porcentajeCuotaInicial debe estar entre 0 y 100", "porcentajeCuotaInicial"))
@@ -329,6 +329,7 @@ func CalculateSimulation(in domain.SimulacionInput) domain.SimulacionResult {
 }
 
 func normalizeSimulationInput(in domain.SimulacionInput) domain.SimulacionInput {
+	in.BancoID = normalizedBankID(in.BancoID)
 	if in.Moneda == "" {
 		in.Moneda = domain.CurrencyPEN
 	}

@@ -242,7 +242,7 @@ func openAPISpec(serverURL string) gin.H {
 					"tags":        []string{"Simulaciones"},
 					"operationId": "createSimulation",
 					"summary":     "Crear simulacion",
-					"description": "Genera una simulacion de credito vehicular Compra Inteligente y la guarda en el historial del usuario autenticado.",
+					"description": "Genera una simulacion de credito vehicular Compra Inteligente y la guarda en el historial del usuario autenticado. bancoId es opcional; si no se envia, se usan las tasas y seguros manuales del payload.",
 					"security":    cookieSecurity(),
 					"requestBody": jsonBodyRef("#/components/schemas/SimulationInput", true, simulationExample()),
 					"responses": gin.H{
@@ -399,7 +399,7 @@ func openAPISpec(serverURL string) gin.H {
 						"modelo":   gin.H{"type": "string", "example": "Yaris"},
 						"anio":     gin.H{"type": "integer", "example": 2025},
 						"tipo":     gin.H{"type": "string", "example": "sedan"},
-						"precio":   gin.H{"type": "number", "example": 80000},
+						"precio":   gin.H{"type": "number", "example": 8000, "minimum": 2000},
 						"moneda":   gin.H{"type": "string", "enum": []string{"PEN", "USD"}, "example": "PEN"},
 						"creadoEn": gin.H{"type": "string", "format": "date-time"},
 					},
@@ -412,7 +412,7 @@ func openAPISpec(serverURL string) gin.H {
 						"modelo": gin.H{"type": "string", "example": "Yaris"},
 						"anio":   gin.H{"type": "integer", "example": 2025},
 						"tipo":   gin.H{"type": "string", "example": "sedan"},
-						"precio": gin.H{"type": "number", "example": 80000},
+						"precio": gin.H{"type": "number", "example": 8000, "minimum": 2000},
 						"moneda": gin.H{"type": "string", "enum": []string{"PEN", "USD"}, "example": "PEN"},
 					},
 				},
@@ -518,11 +518,11 @@ func openAPISpec(serverURL string) gin.H {
 					"required": []string{"porcentajeCuotaInicial", "plazoMeses"},
 					"properties": gin.H{
 						"nombreCliente":            gin.H{"type": "string", "example": "cliente01"},
-						"bancoId":                  gin.H{"type": "string", "example": "bbva-vehicular-sostenible"},
+						"bancoId":                  gin.H{"type": "string", "example": "manual", "description": "Opcional. Usa un id del catalogo o 'manual' para ingresar tasas y seguros manualmente."},
 						"moneda":                   gin.H{"type": "string", "enum": []string{"PEN", "USD"}, "example": "PEN"},
 						"vehiculo":                 gin.H{"$ref": "#/components/schemas/VehicleCreateRequest"},
 						"fechaInicio":              gin.H{"type": "string", "format": "date", "example": "2026-06-01"},
-						"precioVehiculo":           gin.H{"type": "number", "example": 80000},
+						"precioVehiculo":           gin.H{"type": "number", "example": 8000, "minimum": 2000},
 						"porcentajeCuotaInicial":   gin.H{"type": "number", "example": 20},
 						"plazoMeses":               gin.H{"type": "integer", "enum": []int{24, 36}, "example": 36},
 						"tasaAnual":                gin.H{"type": "number", "example": 18},
@@ -656,7 +656,7 @@ func vehicleExample() gin.H {
 		"modelo": "Yaris",
 		"anio":   2025,
 		"tipo":   "sedan",
-		"precio": 80000,
+		"precio": 8000,
 		"moneda": "PEN",
 	}
 }
@@ -683,14 +683,14 @@ func clientProfileUpdateExample() gin.H {
 
 func simulationExample() gin.H {
 	return gin.H{
-		"bancoId": "bbva-vehicular-sostenible",
+		"bancoId": "manual",
 		"moneda":  "PEN",
 		"vehiculo": gin.H{
 			"marca":  "Toyota",
 			"modelo": "Yaris",
 			"anio":   2025,
 			"tipo":   "sedan",
-			"precio": 80000,
+			"precio": 8000,
 			"moneda": "PEN",
 		},
 		"porcentajeCuotaInicial": 20,
