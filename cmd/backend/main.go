@@ -28,7 +28,7 @@ func main() {
 			log.Fatalf("error connecting postgres: %v", err)
 		}
 		defer store.Close()
-		authSvc = services.NewAuthService(store, store, tokens, cfg.AccessTTL, cfg.RefreshTTL)
+		authSvc = services.NewAuthService(store, tokens, cfg.AccessTTL, cfg.RefreshTTL)
 		simSvc = services.NewSimulationService(store, store)
 		vehicleSvc = services.NewVehicleService(store, store)
 	} else {
@@ -37,7 +37,7 @@ func main() {
 		if err != nil {
 			log.Fatalf("error opening data store: %v", err)
 		}
-		authSvc = services.NewAuthService(store, store, tokens, cfg.AccessTTL, cfg.RefreshTTL)
+		authSvc = services.NewAuthService(store, tokens, cfg.AccessTTL, cfg.RefreshTTL)
 		simSvc = services.NewSimulationService(store, store)
 		vehicleSvc = services.NewVehicleService(store, store)
 	}

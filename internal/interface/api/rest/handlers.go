@@ -30,10 +30,18 @@ type loginReq struct {
 
 type registerReq struct {
 	Username       string `json:"username" binding:"required"`
+	FullName       string `json:"fullName" binding:"required"`
 	Gmail          string `json:"gmail" binding:"required"`
 	DNI            string `json:"dni" binding:"required"`
 	Password       string `json:"password" binding:"required"`
 	RepeatPassword string `json:"repeatPassword" binding:"required"`
+}
+
+type updateProfileReq struct {
+	Email      string `json:"email"`
+	DNI        string `json:"dni"`
+	FullName   string `json:"fullName"`
+	PictureURL string `json:"pictureUrl"`
 }
 
 func (h *Handler) Login(c *gin.Context) {
@@ -58,7 +66,7 @@ func (h *Handler) Login(c *gin.Context) {
 func (h *Handler) Register(c *gin.Context) {
 	var req registerReq
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, domain.ErrorResponse{Error: domain.NewError("validation_error", "username, gmail, dni, password y repeatPassword son requeridos", "")})
+		c.JSON(http.StatusBadRequest, domain.ErrorResponse{Error: domain.NewError("validation_error", "username, fullName, gmail, dni, password y repeatPassword son requeridos", "")})
 		return
 	}
 	if req.Password != req.RepeatPassword {
@@ -67,13 +75,14 @@ func (h *Handler) Register(c *gin.Context) {
 	}
 	acc, ref, err := h.authSvc.RegisterProfile(c, domain.User{
 		Username: req.Username,
+		FullName: req.FullName,
 		Email:    req.Gmail,
 		DNI:      req.DNI,
 	}, req.Password)
 	if err != nil {
 		switch err.Error() {
 		case "validation_error":
-			c.JSON(http.StatusBadRequest, domain.ErrorResponse{Error: domain.NewError("validation_error", "username minimo 3 chars, sin espacios; password minimo 6 chars; DNI 8 digitos; email valido", "")})
+			c.JSON(http.StatusBadRequest, domain.ErrorResponse{Error: domain.NewError("validation_error", "username minimo 3 chars, sin espacios; fullName requerido; password minimo 6 chars; DNI 8 digitos; email valido", "")})
 		case "conflict":
 			c.JSON(http.StatusConflict, domain.ErrorResponse{Error: domain.NewError("conflict", "el username ya existe", "username")})
 		default:
@@ -82,7 +91,7 @@ func (h *Handler) Register(c *gin.Context) {
 		return
 	}
 	h.setAuthCookies(c, acc, ref)
-	c.JSON(http.StatusCreated, gin.H{"user": gin.H{"username": req.Username, "gmail": req.Gmail, "dni": req.DNI}})
+	c.JSON(http.StatusCreated, gin.H{"user": gin.H{"username": req.Username, "fullName": req.FullName, "gmail": req.Gmail, "dni": req.DNI}})
 }
 
 func (h *Handler) Logout(c *gin.Context) {
@@ -108,6 +117,35 @@ func (h *Handler) Refresh(c *gin.Context) {
 func (h *Handler) Session(c *gin.Context) {
 	u, _ := c.Get("username")
 	c.JSON(http.StatusOK, gin.H{"authenticated": true, "user": gin.H{"username": u}})
+}
+
+func (h *Handler) UpdateClientProfile(c *gin.Context) {
+	var req updateProfileReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, domain.ErrorResponse{Error: domain.NewError("validation_error", "payload invalido", "")})
+		return
+	}
+	usernameAny, _ := c.Get("username")
+	username, _ := usernameAny.(string)
+	user, ok, err := h.authSvc.UpdateProfile(c, username, domain.UserProfileUpdate{
+		Email:      req.Email,
+		DNI:        req.DNI,
+		FullName:   req.FullName,
+		PictureURL: req.PictureURL,
+	})
+	if err != nil {
+		if err.Error() == "validation_error" {
+			c.JSON(http.StatusBadRequest, domain.ErrorResponse{Error: domain.NewError("validation_error", "email, dni o pictureUrl invalidos; la foto debe ser PNG", "")})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, domain.ErrorResponse{Error: domain.NewError("internal_error", "error actualizando cliente", "")})
+		return
+	}
+	if !ok {
+		c.JSON(http.StatusNotFound, domain.ErrorResponse{Error: domain.NewError("not_found", "cliente no encontrado", "username")})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"username": user.Username, "email": user.Email, "dni": user.DNI, "fullName": user.FullName, "role": user.Role, "pictureUrl": user.PictureURL})
 }
 
 func (h *Handler) CreateSimulation(c *gin.Context) {
@@ -209,6 +247,30 @@ func (h *Handler) GetVehicleByID(c *gin.Context) {
 	c.JSON(http.StatusOK, vehicle)
 }
 
+func (h *Handler) UpdateVehicle(c *gin.Context) {
+	var in domain.Vehicle
+	if err := c.ShouldBindJSON(&in); err != nil {
+		c.JSON(http.StatusBadRequest, domain.ErrorResponse{Error: domain.NewError("validation_error", "payload invalido", "")})
+		return
+	}
+	usernameAny, _ := c.Get("username")
+	username, _ := usernameAny.(string)
+	vehicle, ok, err := h.vehSvc.UpdateForUser(c, username, c.Param("id"), in)
+	if err != nil {
+		if err.Error() == "validation_error" {
+			c.JSON(http.StatusBadRequest, domain.ErrorResponse{Error: domain.NewError("validation_error", "errores de validacion", "")})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, domain.ErrorResponse{Error: domain.NewError("internal_error", "error actualizando vehiculo", "")})
+		return
+	}
+	if !ok {
+		c.JSON(http.StatusNotFound, domain.ErrorResponse{Error: domain.NewError("not_found", "vehiculo no encontrado", "id")})
+		return
+	}
+	c.JSON(http.StatusOK, vehicle)
+}
+
 func (h *Handler) GetClientProfile(c *gin.Context) {
 	usernameAny, _ := c.Get("username")
 	username, _ := usernameAny.(string)
@@ -221,7 +283,7 @@ func (h *Handler) GetClientProfile(c *gin.Context) {
 		c.JSON(http.StatusNotFound, domain.ErrorResponse{Error: domain.NewError("not_found", "cliente no encontrado", "username")})
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{"username": user.Username, "email": user.Email, "dni": user.DNI, "fullName": user.FullName, "role": user.Role})
+	c.JSON(http.StatusOK, gin.H{"username": user.Username, "email": user.Email, "dni": user.DNI, "fullName": user.FullName, "pictureUrl": user.PictureURL, "role": user.Role})
 }
 
 func (h *Handler) OpenAPI(c *gin.Context) {

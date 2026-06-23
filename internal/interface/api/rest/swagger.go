@@ -2,12 +2,12 @@ package rest
 
 import "github.com/gin-gonic/gin"
 
-const swaggerUIHTML = `<!doctype html>
+const docsHTML = `<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Backend OF Swagger</title>
+  <title>Swagger UI</title>
   <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css">
 </head>
 <body>
@@ -15,12 +15,14 @@ const swaggerUIHTML = `<!doctype html>
   <script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
   <script>
     window.onload = function () {
-      window.ui = SwaggerUIBundle({
+      SwaggerUIBundle({
         url: '/openapi.json',
         dom_id: '#swagger-ui',
         deepLinking: true,
         docExpansion: 'list',
-        persistAuthorization: true
+        persistAuthorization: true,
+        tryItOutEnabled: true,
+        displayRequestDuration: true
       });
     };
   </script>
@@ -28,5 +30,5 @@ const swaggerUIHTML = `<!doctype html>
 </html>`
 
 func swaggerUI(c *gin.Context) {
-	c.Data(200, "text/html; charset=utf-8", []byte(swaggerUIHTML))
+	c.Data(200, "text/html; charset=utf-8", []byte(docsHTML))
 }

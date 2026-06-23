@@ -47,8 +47,28 @@ func Load() Config {
 }
 
 func loadLocalEnv() {
-	for _, path := range []string{".env.local", ".env"} {
-		loadEnvFile(path)
+	for _, name := range []string{".env.local", ".env"} {
+		if path, ok := findConfigFile(name); ok {
+			loadEnvFile(path)
+		}
+	}
+}
+
+func findConfigFile(name string) (string, bool) {
+	dir, err := os.Getwd()
+	if err != nil {
+		return "", false
+	}
+	for {
+		candidate := filepath.Join(dir, name)
+		if _, err := os.Stat(candidate); err == nil {
+			return candidate, true
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return "", false
+		}
+		dir = parent
 	}
 }
 

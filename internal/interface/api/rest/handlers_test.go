@@ -27,7 +27,7 @@ func TestVehicleAndSimulationHTTPFlow(t *testing.T) {
 		LoginMaxPerMinute: 10,
 	}
 	tokenManager := security.NewTokenManager(cfg.JWTSecret)
-	authSvc := services.NewAuthService(store, store, tokenManager, cfg.AccessTTL, cfg.RefreshTTL)
+	authSvc := services.NewAuthService(store, tokenManager, cfg.AccessTTL, cfg.RefreshTTL)
 	if err := authSvc.Seed(context.Background()); err != nil {
 		t.Fatalf("seed: %v", err)
 	}
@@ -51,6 +51,41 @@ func TestVehicleAndSimulationHTTPFlow(t *testing.T) {
 	listVehicles := performJSON(router, http.MethodGet, "/api/v1/vehiculos", "", cookies)
 	if listVehicles.Code != http.StatusOK {
 		t.Fatalf("expected vehicles list ok, got %d", listVehicles.Code)
+	}
+	var vehicleList struct {
+		Items []struct {
+			ID string `json:"id"`
+		} `json:"items"`
+	}
+	if err := json.Unmarshal(listVehicles.Body.Bytes(), &vehicleList); err != nil {
+		t.Fatalf("decode vehicle list: %v", err)
+	}
+	if len(vehicleList.Items) == 0 || vehicleList.Items[0].ID == "" {
+		t.Fatalf("expected saved vehicle id")
+	}
+
+	updateProfileBody := `{"email":"cliente01-updated@email.com","dni":"87654321","fullName":"Cliente Actualizado","pictureUrl":"https://example.com/avatar.png"}`
+	updateProfileResp := performJSON(router, http.MethodPut, "/api/v1/clientes/me", updateProfileBody, cookies)
+	if updateProfileResp.Code != http.StatusOK {
+		t.Fatalf("expected profile updated, got %d: %s", updateProfileResp.Code, updateProfileResp.Body.String())
+	}
+	if !bytes.Contains(updateProfileResp.Body.Bytes(), []byte("cliente01-updated@email.com")) || !bytes.Contains(updateProfileResp.Body.Bytes(), []byte("avatar.png")) {
+		t.Fatalf("expected updated profile response")
+	}
+
+	invalidPictureBody := `{"pictureUrl":"https://example.com/avatar.jpg"}`
+	invalidPictureResp := performJSON(router, http.MethodPut, "/api/v1/clientes/me", invalidPictureBody, cookies)
+	if invalidPictureResp.Code != http.StatusBadRequest {
+		t.Fatalf("expected invalid png validation, got %d: %s", invalidPictureResp.Code, invalidPictureResp.Body.String())
+	}
+
+	updateVehicleBody := `{"marca":"Toyota","modelo":"Corolla Cross","anio":2026,"tipo":"suv","precio":95000,"moneda":"PEN"}`
+	updateVehicleResp := performJSON(router, http.MethodPut, "/api/v1/vehiculos/"+vehicleList.Items[0].ID, updateVehicleBody, cookies)
+	if updateVehicleResp.Code != http.StatusOK {
+		t.Fatalf("expected vehicle updated, got %d: %s", updateVehicleResp.Code, updateVehicleResp.Body.String())
+	}
+	if !bytes.Contains(updateVehicleResp.Body.Bytes(), []byte("Corolla Cross")) {
+		t.Fatalf("expected updated vehicle response")
 	}
 
 	simulationBody := `{
@@ -76,6 +111,11 @@ func TestVehicleAndSimulationHTTPFlow(t *testing.T) {
 	var sim struct {
 		ID     string `json:"id"`
 		Result struct {
+			Tasa struct {
+				TipoTasa                 string  `json:"tipoTasa"`
+				TasaEfectivaAnual        float64 `json:"tasaEfectivaAnual"`
+				FrecuenciaCapitalizacion int     `json:"frecuenciaCapitalizacion"`
+			} `json:"tasa"`
 			Resumen struct {
 				TCEA float64 `json:"tcea"`
 			} `json:"resumen"`
@@ -90,6 +130,9 @@ func TestVehicleAndSimulationHTTPFlow(t *testing.T) {
 	}
 	if sim.ID == "" || sim.Result.Resumen.TCEA <= 0 || len(sim.Result.Cronograma) != 36 {
 		t.Fatalf("unexpected simulation response: %+v", sim)
+	}
+	if sim.Result.Tasa.TipoTasa != "nominal" || sim.Result.Tasa.FrecuenciaCapitalizacion != 12 || sim.Result.Tasa.TasaEfectivaAnual <= 0.18 {
+		t.Fatalf("expected nominal rate converted to effective annual rate, got %+v", sim.Result.Tasa)
 	}
 	if sim.Result.Cronograma[0].SaldoInicial <= 0 || sim.Result.Cronograma[0].Seguro <= 0 {
 		t.Fatalf("expected enriched schedule row")
@@ -124,13 +167,18 @@ func TestVehicleAndSimulationHTTPFlow(t *testing.T) {
 		t.Fatalf("expected swagger ui ok, got %d", swagger.Code)
 	}
 	if !bytes.Contains(swagger.Body.Bytes(), []byte("/openapi.json")) {
-		t.Fatalf("expected swagger ui to reference openapi.json")
+		t.Fatalf("expected docs ui to reference openapi.json")
+	}
+
+	docs := performJSON(router, http.MethodGet, "/docs", "", nil)
+	if docs.Code != http.StatusOK {
+		t.Fatalf("expected docs ui ok, got %d", docs.Code)
 	}
 }
 
 func registerAndCookies(t *testing.T, router http.Handler) []*http.Cookie {
 	t.Helper()
-	body := `{"username":"cliente01","gmail":"cliente01@email.com","dni":"12345678","password":"secret123","repeatPassword":"secret123"}`
+	body := `{"username":"cliente01","fullName":"Cliente Demo","gmail":"cliente01@email.com","dni":"12345678","password":"secret123","repeatPassword":"secret123"}`
 	resp := performJSON(router, http.MethodPost, "/api/v1/auth/register", body, nil)
 	if resp.Code != http.StatusCreated {
 		t.Fatalf("register got %d: %s", resp.Code, resp.Body.String())

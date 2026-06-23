@@ -9,12 +9,12 @@ import (
 )
 
 type VehicleService struct {
-	clientes repository.ClienteRepository
+	users    repository.UserRepository
 	vehicles repository.VehicleRepository
 }
 
-func NewVehicleService(clientes repository.ClienteRepository, vehicles repository.VehicleRepository) *VehicleService {
-	return &VehicleService{clientes: clientes, vehicles: vehicles}
+func NewVehicleService(users repository.UserRepository, vehicles repository.VehicleRepository) *VehicleService {
+	return &VehicleService{users: users, vehicles: vehicles}
 }
 
 func (s *VehicleService) CreateForUser(ctx context.Context, username string, vehicle domain.Vehicle) (domain.Vehicle, error) {
@@ -22,28 +22,26 @@ func (s *VehicleService) CreateForUser(ctx context.Context, username string, veh
 		return domain.Vehicle{}, errors.New("validation_error")
 	}
 	vehicle = normalizeVehicle(vehicle)
-	c, err := s.clientes.GetOrCreateByNombre(ctx, username)
+	user, ok, err := s.users.GetByUsername(ctx, username)
 	if err != nil {
 		return domain.Vehicle{}, err
 	}
-	vehicle.ClienteID = c.ID
+	if !ok {
+		return domain.Vehicle{}, errors.New("unauthorized")
+	}
+	vehicle.UserID = user.ID
 	return s.vehicles.CreateVehicle(ctx, vehicle)
 }
 
 func (s *VehicleService) ListByUser(ctx context.Context, username string) ([]domain.Vehicle, error) {
-	clientes, err := s.clientes.GetByNombre(ctx, username)
+	user, ok, err := s.users.GetByUsername(ctx, username)
 	if err != nil {
 		return nil, err
 	}
-	out := make([]domain.Vehicle, 0)
-	for _, c := range clientes {
-		items, err := s.vehicles.ListVehiclesByClienteID(ctx, c.ID)
-		if err != nil {
-			return nil, err
-		}
-		out = append(out, items...)
+	if !ok {
+		return nil, errors.New("unauthorized")
 	}
-	return out, nil
+	return s.vehicles.ListVehiclesByUserID(ctx, user.ID)
 }
 
 func (s *VehicleService) GetByIDForUser(ctx context.Context, username, id string) (domain.Vehicle, bool, error) {
@@ -51,16 +49,40 @@ func (s *VehicleService) GetByIDForUser(ctx context.Context, username, id string
 	if err != nil || !ok {
 		return vehicle, ok, err
 	}
-	clientes, err := s.clientes.GetByNombre(ctx, username)
+	user, ok, err := s.users.GetByUsername(ctx, username)
 	if err != nil {
 		return domain.Vehicle{}, false, err
 	}
-	for _, c := range clientes {
-		if c.ID == vehicle.ClienteID {
-			return vehicle, true, nil
-		}
+	if !ok {
+		return domain.Vehicle{}, false, nil
 	}
-	return domain.Vehicle{}, false, nil
+	return vehicle, vehicle.UserID == user.ID, nil
+}
+
+func (s *VehicleService) UpdateForUser(ctx context.Context, username, id string, vehicle domain.Vehicle) (domain.Vehicle, bool, error) {
+	if errs := ValidateVehicle(vehicle); len(errs) > 0 {
+		return domain.Vehicle{}, false, errors.New("validation_error")
+	}
+	user, ok, err := s.users.GetByUsername(ctx, username)
+	if err != nil {
+		return domain.Vehicle{}, false, err
+	}
+	if !ok {
+		return domain.Vehicle{}, false, nil
+	}
+	existing, ok, err := s.vehicles.GetVehicleByID(ctx, id)
+	if err != nil {
+		return domain.Vehicle{}, false, err
+	}
+	if !ok || existing.UserID != user.ID {
+		return domain.Vehicle{}, false, nil
+	}
+	vehicle = normalizeVehicle(vehicle)
+	vehicle.ID = existing.ID
+	vehicle.UserID = existing.UserID
+	vehicle.CreadoEn = existing.CreadoEn
+	updated, ok, err := s.vehicles.UpdateVehicle(ctx, vehicle)
+	return updated, ok, err
 }
 
 func ValidateVehicle(vehicle domain.Vehicle) []domain.APIError {

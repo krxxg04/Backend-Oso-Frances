@@ -2,10 +2,7 @@ package postgres
 
 import (
 	domain "backend-of/internal/domain/entities"
-	"backend-of/internal/domain/shared"
 	"context"
-	"crypto/rand"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"time"
@@ -38,29 +35,22 @@ func (s *Store) Close() {
 func (s *Store) migrate(ctx context.Context) error {
 	q := `
 create table if not exists users (
-  username text primary key,
-  email text,
+  id uuid primary key default gen_random_uuid(),
+  username text unique,
+  email text unique,
   dni text,
   full_name text,
-  password_hash text not null,
-  role text not null,
-  created_at timestamptz not null default now()
-);
-
-alter table users add column if not exists email text;
-alter table users add column if not exists dni text;
-alter table users add column if not exists full_name text;
-
-create table if not exists clientes (
-  id text primary key,
-  nombre text not null,
-  nombre_key text not null unique,
-  creado_en timestamptz not null
+  password_hash text,
+  google_id text unique,
+  picture_url text,
+  role text not null default 'user',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
 );
 
 create table if not exists vehicles (
-  id text primary key,
-  cliente_id text not null references clientes(id),
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references users(id) on delete cascade,
   marca text not null,
   modelo text not null,
   anio integer not null default 0,
@@ -71,27 +61,25 @@ create table if not exists vehicles (
 );
 
 create table if not exists simulaciones (
-  id text primary key,
-  cliente_id text not null references clientes(id),
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references users(id) on delete cascade,
+  vehicle_id uuid references vehicles(id) on delete set null,
   creado_en timestamptz not null,
   input_json jsonb not null,
   result_json jsonb not null
 );
 
-create index if not exists idx_sim_cliente_creado
-on simulaciones(cliente_id, creado_en desc);
+create index if not exists idx_simulaciones_user_creado
+on simulaciones(user_id, creado_en desc);
 
-create index if not exists idx_vehicles_cliente_creado
-on vehicles(cliente_id, creado_en desc);
+create index if not exists idx_simulaciones_vehicle
+on simulaciones(vehicle_id);
+
+create index if not exists idx_vehicles_user_creado
+on vehicles(user_id, creado_en desc);
 `
 	_, err := s.pool.Exec(ctx, q)
 	return err
-}
-
-func newID(prefix string) string {
-	b := make([]byte, 8)
-	_, _ = rand.Read(b)
-	return fmt.Sprintf("%s_%s_%s", prefix, time.Now().UTC().Format("20060102150405"), hex.EncodeToString(b))
 }
 
 func (s *Store) SeedIfEmpty(ctx context.Context, users []domain.User) error {
@@ -103,7 +91,7 @@ func (s *Store) SeedIfEmpty(ctx context.Context, users []domain.User) error {
 		return nil
 	}
 	for _, u := range users {
-		_, err := s.pool.Exec(ctx, `insert into users (username, email, dni, full_name, password_hash, role) values ($1,$2,$3,$4,$5,$6)`, u.Username, u.Email, u.DNI, u.FullName, u.PasswordHash, u.Role)
+		_, err := s.pool.Exec(ctx, `insert into users (username, email, dni, full_name, password_hash, role) values ($1,$2,$3,$4,$5,$6)`, u.Username, nullableText(u.Email), nullableText(u.DNI), nullableText(u.FullName), u.PasswordHash, u.Role)
 		if err != nil {
 			return err
 		}
@@ -119,13 +107,13 @@ func (s *Store) CreateUser(ctx context.Context, user domain.User) error {
 	if exists {
 		return fmt.Errorf("user_exists")
 	}
-	_, err = s.pool.Exec(ctx, `insert into users (username, email, dni, full_name, password_hash, role) values ($1,$2,$3,$4,$5,$6)`, user.Username, user.Email, user.DNI, user.FullName, user.PasswordHash, user.Role)
+	_, err = s.pool.Exec(ctx, `insert into users (username, email, dni, full_name, password_hash, role) values ($1,$2,$3,$4,$5,$6)`, user.Username, nullableText(user.Email), nullableText(user.DNI), nullableText(user.FullName), user.PasswordHash, user.Role)
 	return err
 }
 
 func (s *Store) GetByUsername(ctx context.Context, username string) (domain.User, bool, error) {
 	var u domain.User
-	err := s.pool.QueryRow(ctx, `select username, coalesce(email,''), coalesce(dni,''), coalesce(full_name,''), password_hash, role from users where username=$1`, username).Scan(&u.Username, &u.Email, &u.DNI, &u.FullName, &u.PasswordHash, &u.Role)
+	err := s.pool.QueryRow(ctx, `select id, username, coalesce(email,''), coalesce(dni,''), coalesce(full_name,''), coalesce(password_hash,''), coalesce(google_id,''), coalesce(picture_url,''), role from users where username=$1`, username).Scan(&u.ID, &u.Username, &u.Email, &u.DNI, &u.FullName, &u.PasswordHash, &u.GoogleID, &u.PictureURL, &u.Role)
 	if err != nil {
 		if err == pgx.ErrNoRows {
 			return domain.User{}, false, nil
@@ -135,51 +123,30 @@ func (s *Store) GetByUsername(ctx context.Context, username string) (domain.User
 	return u, true, nil
 }
 
-func (s *Store) GetOrCreateByNombre(ctx context.Context, nombre string) (domain.Cliente, error) {
-	nombreKey := shared.NormalizeKey(nombre)
-	var c domain.Cliente
-	err := s.pool.QueryRow(ctx, `select id,nombre,nombre_key,creado_en from clientes where nombre_key=$1`, nombreKey).Scan(&c.ID, &c.Nombre, &c.NombreKey, &c.CreadoEn)
-	if err == nil {
-		return c, nil
-	}
-	if err != pgx.ErrNoRows {
-		return domain.Cliente{}, err
-	}
-	c = domain.Cliente{ID: newID("cli"), Nombre: nombre, NombreKey: nombreKey, CreadoEn: time.Now().UTC()}
-	_, err = s.pool.Exec(ctx, `insert into clientes (id,nombre,nombre_key,creado_en) values ($1,$2,$3,$4) on conflict (nombre_key) do nothing`, c.ID, c.Nombre, c.NombreKey, c.CreadoEn)
+func (s *Store) UpdateProfileByUsername(ctx context.Context, username string, update domain.UserProfileUpdate) (domain.User, bool, error) {
+	query := `
+update users
+set
+  email = coalesce($2, email),
+  dni = coalesce($3, dni),
+  full_name = coalesce($4, full_name),
+  picture_url = coalesce($5, picture_url),
+  updated_at = now()
+where username = $1
+returning id, username, coalesce(email,''), coalesce(dni,''), coalesce(full_name,''), coalesce(password_hash,''), coalesce(google_id,''), coalesce(picture_url,''), role`
+	var user domain.User
+	err := s.pool.QueryRow(ctx, query, username, nullableText(update.Email), nullableText(update.DNI), nullableText(update.FullName), nullableText(update.PictureURL)).
+		Scan(&user.ID, &user.Username, &user.Email, &user.DNI, &user.FullName, &user.PasswordHash, &user.GoogleID, &user.PictureURL, &user.Role)
 	if err != nil {
-		return domain.Cliente{}, err
-	}
-	err = s.pool.QueryRow(ctx, `select id,nombre,nombre_key,creado_en from clientes where nombre_key=$1`, nombreKey).Scan(&c.ID, &c.Nombre, &c.NombreKey, &c.CreadoEn)
-	return c, err
-}
-
-func (s *Store) GetByNombre(ctx context.Context, nombre string) ([]domain.Cliente, error) {
-	key := shared.NormalizeKey(nombre)
-	out := make([]domain.Cliente, 0)
-	var rows pgx.Rows
-	var err error
-	if key == "" {
-		rows, err = s.pool.Query(ctx, `select id,nombre,nombre_key,creado_en from clientes order by creado_en asc`)
-	} else {
-		rows, err = s.pool.Query(ctx, `select id,nombre,nombre_key,creado_en from clientes where nombre_key=$1 order by creado_en asc`, key)
-	}
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	for rows.Next() {
-		var c domain.Cliente
-		if err := rows.Scan(&c.ID, &c.Nombre, &c.NombreKey, &c.CreadoEn); err != nil {
-			return nil, err
+		if err == pgx.ErrNoRows {
+			return domain.User{}, false, nil
 		}
-		out = append(out, c)
+		return domain.User{}, false, err
 	}
-	return out, rows.Err()
+	return user, true, nil
 }
 
 func (s *Store) Create(ctx context.Context, sim domain.Simulacion) (domain.Simulacion, error) {
-	sim.ID = newID("sim")
 	sim.CreadoEn = time.Now().UTC()
 	inJSON, err := json.Marshal(sim.Input)
 	if err != nil {
@@ -189,7 +156,7 @@ func (s *Store) Create(ctx context.Context, sim domain.Simulacion) (domain.Simul
 	if err != nil {
 		return domain.Simulacion{}, err
 	}
-	_, err = s.pool.Exec(ctx, `insert into simulaciones (id,cliente_id,creado_en,input_json,result_json) values ($1,$2,$3,$4,$5)`, sim.ID, sim.ClienteID, sim.CreadoEn, inJSON, resJSON)
+	err = s.pool.QueryRow(ctx, `insert into simulaciones (user_id, vehicle_id, creado_en, input_json, result_json) values ($1,$2,$3,$4,$5) returning id`, sim.UserID, nullableUUID(sim.VehicleID), sim.CreadoEn, inJSON, resJSON).Scan(&sim.ID)
 	if err != nil {
 		return domain.Simulacion{}, err
 	}
@@ -199,7 +166,7 @@ func (s *Store) Create(ctx context.Context, sim domain.Simulacion) (domain.Simul
 func (s *Store) GetByID(ctx context.Context, id string) (domain.Simulacion, bool, error) {
 	var sim domain.Simulacion
 	var inJSON, resJSON []byte
-	err := s.pool.QueryRow(ctx, `select id,cliente_id,creado_en,input_json,result_json from simulaciones where id=$1`, id).Scan(&sim.ID, &sim.ClienteID, &sim.CreadoEn, &inJSON, &resJSON)
+	err := s.pool.QueryRow(ctx, `select id,user_id,coalesce(vehicle_id::text,''),creado_en,input_json,result_json from simulaciones where id=$1`, id).Scan(&sim.ID, &sim.UserID, &sim.VehicleID, &sim.CreadoEn, &inJSON, &resJSON)
 	if err != nil {
 		if err == pgx.ErrNoRows {
 			return domain.Simulacion{}, false, nil
@@ -215,8 +182,8 @@ func (s *Store) GetByID(ctx context.Context, id string) (domain.Simulacion, bool
 	return sim, true, nil
 }
 
-func (s *Store) ListByClienteID(ctx context.Context, clienteID string) ([]domain.Simulacion, error) {
-	rows, err := s.pool.Query(ctx, `select id,cliente_id,creado_en,input_json,result_json from simulaciones where cliente_id=$1 order by creado_en desc`, clienteID)
+func (s *Store) ListByUserID(ctx context.Context, userID string) ([]domain.Simulacion, error) {
+	rows, err := s.pool.Query(ctx, `select id,user_id,coalesce(vehicle_id::text,''),creado_en,input_json,result_json from simulaciones where user_id=$1 order by creado_en desc`, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -225,7 +192,7 @@ func (s *Store) ListByClienteID(ctx context.Context, clienteID string) ([]domain
 	for rows.Next() {
 		var sim domain.Simulacion
 		var inJSON, resJSON []byte
-		if err := rows.Scan(&sim.ID, &sim.ClienteID, &sim.CreadoEn, &inJSON, &resJSON); err != nil {
+		if err := rows.Scan(&sim.ID, &sim.UserID, &sim.VehicleID, &sim.CreadoEn, &inJSON, &resJSON); err != nil {
 			return nil, err
 		}
 		if err := json.Unmarshal(inJSON, &sim.Input); err != nil {
@@ -240,12 +207,12 @@ func (s *Store) ListByClienteID(ctx context.Context, clienteID string) ([]domain
 }
 
 func (s *Store) CreateVehicle(ctx context.Context, vehicle domain.Vehicle) (domain.Vehicle, error) {
-	vehicle.ID = newID("veh")
 	vehicle.CreadoEn = time.Now().UTC()
-	_, err := s.pool.Exec(ctx, `
-insert into vehicles (id,cliente_id,marca,modelo,anio,tipo,precio,moneda,creado_en)
-values ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
-		vehicle.ID, vehicle.ClienteID, vehicle.Marca, vehicle.Modelo, vehicle.Anio, vehicle.Tipo, vehicle.Precio, vehicle.Moneda, vehicle.CreadoEn)
+	err := s.pool.QueryRow(ctx, `
+insert into vehicles (user_id,marca,modelo,anio,tipo,precio,moneda,creado_en)
+values ($1,$2,$3,$4,$5,$6,$7,$8)
+returning id`,
+		vehicle.UserID, vehicle.Marca, vehicle.Modelo, vehicle.Anio, vehicle.Tipo, vehicle.Precio, vehicle.Moneda, vehicle.CreadoEn).Scan(&vehicle.ID)
 	if err != nil {
 		return domain.Vehicle{}, err
 	}
@@ -255,9 +222,9 @@ values ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
 func (s *Store) GetVehicleByID(ctx context.Context, id string) (domain.Vehicle, bool, error) {
 	var vehicle domain.Vehicle
 	err := s.pool.QueryRow(ctx, `
-select id,cliente_id,marca,modelo,anio,tipo,precio,moneda,creado_en
+select id,user_id,marca,modelo,anio,tipo,precio,moneda,creado_en
 from vehicles
-where id=$1`, id).Scan(&vehicle.ID, &vehicle.ClienteID, &vehicle.Marca, &vehicle.Modelo, &vehicle.Anio, &vehicle.Tipo, &vehicle.Precio, &vehicle.Moneda, &vehicle.CreadoEn)
+where id=$1`, id).Scan(&vehicle.ID, &vehicle.UserID, &vehicle.Marca, &vehicle.Modelo, &vehicle.Anio, &vehicle.Tipo, &vehicle.Precio, &vehicle.Moneda, &vehicle.CreadoEn)
 	if err != nil {
 		if err == pgx.ErrNoRows {
 			return domain.Vehicle{}, false, nil
@@ -267,12 +234,12 @@ where id=$1`, id).Scan(&vehicle.ID, &vehicle.ClienteID, &vehicle.Marca, &vehicle
 	return vehicle, true, nil
 }
 
-func (s *Store) ListVehiclesByClienteID(ctx context.Context, clienteID string) ([]domain.Vehicle, error) {
+func (s *Store) ListVehiclesByUserID(ctx context.Context, userID string) ([]domain.Vehicle, error) {
 	rows, err := s.pool.Query(ctx, `
-select id,cliente_id,marca,modelo,anio,tipo,precio,moneda,creado_en
+select id,user_id,marca,modelo,anio,tipo,precio,moneda,creado_en
 from vehicles
-where cliente_id=$1
-order by creado_en desc`, clienteID)
+where user_id=$1
+order by creado_en desc`, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -280,10 +247,41 @@ order by creado_en desc`, clienteID)
 	out := make([]domain.Vehicle, 0)
 	for rows.Next() {
 		var vehicle domain.Vehicle
-		if err := rows.Scan(&vehicle.ID, &vehicle.ClienteID, &vehicle.Marca, &vehicle.Modelo, &vehicle.Anio, &vehicle.Tipo, &vehicle.Precio, &vehicle.Moneda, &vehicle.CreadoEn); err != nil {
+		if err := rows.Scan(&vehicle.ID, &vehicle.UserID, &vehicle.Marca, &vehicle.Modelo, &vehicle.Anio, &vehicle.Tipo, &vehicle.Precio, &vehicle.Moneda, &vehicle.CreadoEn); err != nil {
 			return nil, err
 		}
 		out = append(out, vehicle)
 	}
 	return out, rows.Err()
+}
+
+func (s *Store) UpdateVehicle(ctx context.Context, vehicle domain.Vehicle) (domain.Vehicle, bool, error) {
+	query := `
+update vehicles
+set marca=$2, modelo=$3, anio=$4, tipo=$5, precio=$6, moneda=$7
+where id=$1 and user_id=$8
+returning id,user_id,marca,modelo,anio,tipo,precio,moneda,creado_en`
+	err := s.pool.QueryRow(ctx, query, vehicle.ID, vehicle.Marca, vehicle.Modelo, vehicle.Anio, vehicle.Tipo, vehicle.Precio, vehicle.Moneda, vehicle.UserID).
+		Scan(&vehicle.ID, &vehicle.UserID, &vehicle.Marca, &vehicle.Modelo, &vehicle.Anio, &vehicle.Tipo, &vehicle.Precio, &vehicle.Moneda, &vehicle.CreadoEn)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return domain.Vehicle{}, false, nil
+		}
+		return domain.Vehicle{}, false, err
+	}
+	return vehicle, true, nil
+}
+
+func nullableText(value string) any {
+	if value == "" {
+		return nil
+	}
+	return value
+}
+
+func nullableUUID(value string) any {
+	if value == "" {
+		return nil
+	}
+	return value
 }

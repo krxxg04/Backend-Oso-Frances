@@ -12,12 +12,12 @@ import (
 )
 
 type SimulationService struct {
-	clientes repository.ClienteRepository
-	sims     repository.SimulacionRepository
+	users repository.UserRepository
+	sims  repository.SimulacionRepository
 }
 
-func NewSimulationService(clientes repository.ClienteRepository, sims repository.SimulacionRepository) *SimulationService {
-	return &SimulationService{clientes: clientes, sims: sims}
+func NewSimulationService(users repository.UserRepository, sims repository.SimulacionRepository) *SimulationService {
+	return &SimulationService{users: users, sims: sims}
 }
 
 func ListMockBanks() []domain.Banco {
@@ -45,12 +45,17 @@ func (s *SimulationService) CreateForUser(ctx context.Context, username string, 
 		return domain.Simulacion{}, errors.New("validation_error")
 	}
 	res := CalculateSimulation(in)
-	c, err := s.clientes.GetOrCreateByNombre(ctx, username)
+	user, ok, err := s.users.GetByUsername(ctx, username)
 	if err != nil {
 		return domain.Simulacion{}, err
 	}
-	in.NombreCliente = c.Nombre
-	return s.sims.Create(ctx, domain.Simulacion{ClienteID: c.ID, Input: in, Result: res})
+	if !ok {
+		return domain.Simulacion{}, errors.New("unauthorized")
+	}
+	if user.FullName != "" {
+		in.NombreCliente = user.FullName
+	}
+	return s.sims.Create(ctx, domain.Simulacion{UserID: user.ID, VehicleID: in.Vehiculo.ID, Input: in, Result: res})
 }
 
 func (s *SimulationService) ListByUser(ctx context.Context, username string) ([]domain.Simulacion, error) {
@@ -58,20 +63,21 @@ func (s *SimulationService) ListByUser(ctx context.Context, username string) ([]
 }
 
 func (s *SimulationService) ListByUserFiltered(ctx context.Context, username string, filter domain.SimulacionFilter) ([]domain.Simulacion, error) {
-	clientes, err := s.clientes.GetByNombre(ctx, username)
+	user, ok, err := s.users.GetByUsername(ctx, username)
 	if err != nil {
 		return nil, err
 	}
-	out := make([]domain.Simulacion, 0)
-	for _, c := range clientes {
-		items, err := s.sims.ListByClienteID(ctx, c.ID)
-		if err != nil {
-			return nil, err
-		}
-		for _, item := range items {
-			if matchesSimulationFilter(item, filter) {
-				out = append(out, item)
-			}
+	if !ok {
+		return nil, errors.New("unauthorized")
+	}
+	items, err := s.sims.ListByUserID(ctx, user.ID)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]domain.Simulacion, 0, len(items))
+	for _, item := range items {
+		if matchesSimulationFilter(item, filter) {
+			out = append(out, item)
 		}
 	}
 	return out, nil
@@ -86,16 +92,14 @@ func (s *SimulationService) GetByIDForUser(ctx context.Context, username, id str
 	if err != nil || !ok {
 		return sim, ok, err
 	}
-	clientes, err := s.clientes.GetByNombre(ctx, username)
+	user, ok, err := s.users.GetByUsername(ctx, username)
 	if err != nil {
 		return domain.Simulacion{}, false, err
 	}
-	for _, c := range clientes {
-		if c.ID == sim.ClienteID {
-			return sim, true, nil
-		}
+	if !ok {
+		return domain.Simulacion{}, false, nil
 	}
-	return domain.Simulacion{}, false, nil
+	return sim, sim.UserID == user.ID, nil
 }
 
 func ValidateSimulationInput(in domain.SimulacionInput) []domain.APIError {
@@ -144,8 +148,14 @@ func ValidateSimulationInput(in domain.SimulacionInput) []domain.APIError {
 	if in.PlazoMeses != 24 && in.PlazoMeses != 36 {
 		errs = append(errs, domain.NewError("validation_error", "plazoMeses debe ser 24 o 36 para Compra Inteligente", "plazoMeses"))
 	}
+	if in.TipoTasa != "" && in.TipoTasa != "efectiva" && in.TipoTasa != "nominal" {
+		errs = append(errs, domain.NewError("validation_error", "tipoTasa debe ser efectiva o nominal", "tipoTasa"))
+	}
 	if in.TasaAnual < 0 || in.TasaEfectivaAnual < 0 {
 		errs = append(errs, domain.NewError("validation_error", "la tasa efectiva anual debe ser >= 0", "tasaEfectivaAnual"))
+	}
+	if in.TipoTasa == "nominal" && in.FrecuenciaCapitalizacion < 1 {
+		errs = append(errs, domain.NewError("validation_error", "frecuenciaCapitalizacion debe ser >= 1 cuando tipoTasa es nominal", "frecuenciaCapitalizacion"))
 	}
 	if in.PeriodosPorAnio < 1 {
 		errs = append(errs, domain.NewError("validation_error", "periodosPorAnio debe ser >= 1", "periodosPorAnio"))
@@ -293,9 +303,15 @@ func CalculateSimulation(in domain.SimulacionInput) domain.SimulacionResult {
 	}
 
 	return domain.SimulacionResult{
-		Banco:           bankOption,
-		TasaPeriodo:     i,
-		Tasa:            domain.Rate{TasaEfectivaAnual: tea, PeriodosPagoPorAnio: periodosPorAnio},
+		Banco:       bankOption,
+		TasaPeriodo: i,
+		Tasa: domain.Rate{
+			TipoTasa:                 simulationRateType(in),
+			TasaNominalAnual:         nominalAnnualRate(in),
+			TasaEfectivaAnual:        tea,
+			FrecuenciaCapitalizacion: capitalizationFrequency(in),
+			PeriodosPagoPorAnio:      periodosPorAnio,
+		},
 		Seguros:         domain.Insurance{SeguroVehicularMensual: in.SeguroVehicularMensual, SeguroDesgravamenAnual: in.SeguroDesgravamenAnual},
 		CuotaBase:       shared.Round2(cuotaBase),
 		VAN:             van,
@@ -329,8 +345,18 @@ func normalizeSimulationInput(in domain.SimulacionInput) domain.SimulacionInput 
 	if in.PeriodosPorAnio <= 0 {
 		in.PeriodosPorAnio = 12
 	}
+	if in.FrecuenciaCapitalizacion <= 0 {
+		in.FrecuenciaCapitalizacion = in.PeriodosPorAnio
+	}
 	if in.TasaAnual == 0 {
 		in.TasaAnual = in.TasaEfectivaAnual
+	}
+	if in.TipoTasa == "" {
+		if in.TasaEfectivaAnual > 0 {
+			in.TipoTasa = "efectiva"
+		} else {
+			in.TipoTasa = "nominal"
+		}
 	}
 	if in.TipoGracia == "" {
 		in.TipoGracia = domain.GraceNone
@@ -344,14 +370,17 @@ func normalizeSimulationInput(in domain.SimulacionInput) domain.SimulacionInput 
 }
 
 func annualEffectiveRate(in domain.SimulacionInput) float64 {
-	rate := in.TasaAnual
-	if rate == 0 {
-		rate = in.TasaEfectivaAnual
+	rateType := simulationRateType(in)
+	if rateType == "nominal" {
+		nominal := normalizePercent(in.TasaAnual)
+		freq := capitalizationFrequency(in)
+		return math.Pow(1+nominal/float64(freq), float64(freq)) - 1
 	}
-	if rate > 1 {
-		rate = rate / 100
+	effective := in.TasaEfectivaAnual
+	if effective == 0 {
+		effective = in.TasaAnual
 	}
-	return rate
+	return normalizePercent(effective)
 }
 
 func periodicRate(annual float64, periodsPerYear int) float64 {
@@ -373,6 +402,37 @@ func annualEffectiveFromMonthlyPercent(monthlyPercent float64) float64 {
 	}
 	monthlyRate := monthlyPercent / 100.0
 	return math.Pow(1+monthlyRate, 12) - 1
+}
+
+func simulationRateType(in domain.SimulacionInput) string {
+	if strings.EqualFold(strings.TrimSpace(in.TipoTasa), "nominal") {
+		return "nominal"
+	}
+	return "efectiva"
+}
+
+func capitalizationFrequency(in domain.SimulacionInput) int {
+	if in.FrecuenciaCapitalizacion > 0 {
+		return in.FrecuenciaCapitalizacion
+	}
+	if in.PeriodosPorAnio > 0 {
+		return in.PeriodosPorAnio
+	}
+	return 12
+}
+
+func nominalAnnualRate(in domain.SimulacionInput) float64 {
+	if simulationRateType(in) != "nominal" {
+		return 0
+	}
+	return normalizePercent(in.TasaAnual)
+}
+
+func normalizePercent(rate float64) float64 {
+	if rate > 1 {
+		return rate / 100
+	}
+	return rate
 }
 
 func parseStartDate(raw string) (time.Time, bool) {

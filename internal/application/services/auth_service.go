@@ -14,27 +14,17 @@ import (
 
 type AuthService struct {
 	users      repository.UserRepository
-	clientes   repository.ClienteRepository
 	tokens     *security.TokenManager
 	accessTTL  time.Duration
 	refreshTTL time.Duration
 }
 
-func NewAuthService(users repository.UserRepository, clientes repository.ClienteRepository, tokens *security.TokenManager, accessTTL, refreshTTL time.Duration) *AuthService {
-	return &AuthService{users: users, clientes: clientes, tokens: tokens, accessTTL: accessTTL, refreshTTL: refreshTTL}
+func NewAuthService(users repository.UserRepository, tokens *security.TokenManager, accessTTL, refreshTTL time.Duration) *AuthService {
+	return &AuthService{users: users, tokens: tokens, accessTTL: accessTTL, refreshTTL: refreshTTL}
 }
 
 func (s *AuthService) Seed(ctx context.Context) error {
-	adminHash, _ := bcrypt.GenerateFromPassword([]byte("admin"), bcrypt.DefaultCost)
-	userHash, _ := bcrypt.GenerateFromPassword([]byte("user"), bcrypt.DefaultCost)
-	if err := s.users.SeedIfEmpty(ctx, []domain.User{
-		{Username: "admin", PasswordHash: string(adminHash), Role: "admin"},
-		{Username: "user", PasswordHash: string(userHash), Role: "user"},
-	}); err != nil {
-		return err
-	}
-	_, _ = s.clientes.GetOrCreateByNombre(ctx, "admin")
-	_, _ = s.clientes.GetOrCreateByNombre(ctx, "user")
+	_ = ctx
 	return nil
 }
 
@@ -62,6 +52,24 @@ func (s *AuthService) Login(ctx context.Context, username, password string) (str
 
 func (s *AuthService) GetUser(ctx context.Context, username string) (domain.User, bool, error) {
 	return s.users.GetByUsername(ctx, username)
+}
+
+func (s *AuthService) UpdateProfile(ctx context.Context, username string, update domain.UserProfileUpdate) (domain.User, bool, error) {
+	update.Email = strings.TrimSpace(update.Email)
+	update.DNI = strings.TrimSpace(update.DNI)
+	update.FullName = strings.TrimSpace(update.FullName)
+	update.PictureURL = strings.TrimSpace(update.PictureURL)
+
+	if update.Email != "" && !strings.Contains(update.Email, "@") {
+		return domain.User{}, false, errors.New("validation_error")
+	}
+	if update.DNI != "" && len(update.DNI) != 8 {
+		return domain.User{}, false, errors.New("validation_error")
+	}
+	if update.PictureURL != "" && !isPNGPicture(update.PictureURL) {
+		return domain.User{}, false, errors.New("validation_error")
+	}
+	return s.users.UpdateProfileByUsername(ctx, username, update)
 }
 
 func (s *AuthService) Register(ctx context.Context, username, password string) (string, string, error) {
@@ -99,13 +107,6 @@ func (s *AuthService) RegisterProfile(ctx context.Context, user domain.User, pas
 		}
 		return "", "", err
 	}
-	clientName := user.FullName
-	if clientName == "" {
-		clientName = username
-	}
-	if _, err := s.clientes.GetOrCreateByNombre(ctx, clientName); err != nil {
-		return "", "", err
-	}
 	acc, err := s.tokens.Sign(username, "access", time.Now().Add(s.accessTTL))
 	if err != nil {
 		return "", "", err
@@ -139,4 +140,9 @@ func (s *AuthService) Refresh(refresh string) (string, string, error) {
 		return "", "", err
 	}
 	return acc, ref, nil
+}
+
+func isPNGPicture(value string) bool {
+	normalized := strings.ToLower(strings.TrimSpace(value))
+	return strings.HasSuffix(normalized, ".png") || strings.HasPrefix(normalized, "data:image/png;base64,")
 }
