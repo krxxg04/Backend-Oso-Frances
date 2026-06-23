@@ -69,8 +69,14 @@ func TestVehicleAndSimulationHTTPFlow(t *testing.T) {
 	if updateProfileResp.Code != http.StatusOK {
 		t.Fatalf("expected profile updated, got %d: %s", updateProfileResp.Code, updateProfileResp.Body.String())
 	}
-	if !bytes.Contains(updateProfileResp.Body.Bytes(), []byte("cliente01-updated@email.com")) {
+	if !bytes.Contains(updateProfileResp.Body.Bytes(), []byte("cliente01-updated@email.com")) || !bytes.Contains(updateProfileResp.Body.Bytes(), []byte("avatar.png")) {
 		t.Fatalf("expected updated profile response")
+	}
+
+	invalidPictureBody := `{"pictureUrl":"https://example.com/avatar.jpg"}`
+	invalidPictureResp := performJSON(router, http.MethodPut, "/api/v1/clientes/me", invalidPictureBody, cookies)
+	if invalidPictureResp.Code != http.StatusBadRequest {
+		t.Fatalf("expected invalid png validation, got %d: %s", invalidPictureResp.Code, invalidPictureResp.Body.String())
 	}
 
 	updateVehicleBody := `{"marca":"Toyota","modelo":"Corolla Cross","anio":2026,"tipo":"suv","precio":95000,"moneda":"PEN"}`
@@ -172,7 +178,7 @@ func TestVehicleAndSimulationHTTPFlow(t *testing.T) {
 
 func registerAndCookies(t *testing.T, router http.Handler) []*http.Cookie {
 	t.Helper()
-	body := `{"username":"cliente01","gmail":"cliente01@email.com","dni":"12345678","password":"secret123","repeatPassword":"secret123"}`
+	body := `{"username":"cliente01","fullName":"Cliente Demo","gmail":"cliente01@email.com","dni":"12345678","password":"secret123","repeatPassword":"secret123"}`
 	resp := performJSON(router, http.MethodPost, "/api/v1/auth/register", body, nil)
 	if resp.Code != http.StatusCreated {
 		t.Fatalf("register got %d: %s", resp.Code, resp.Body.String())

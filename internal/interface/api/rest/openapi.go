@@ -118,7 +118,7 @@ func openAPISpec() gin.H {
 					"tags":        []string{"Clientes"},
 					"operationId": "updateClientProfile",
 					"summary":     "Actualizar perfil del cliente autenticado",
-					"description": "Permite actualizar email, dni, nombre completo y pictureUrl del usuario autenticado.",
+					"description": "Permite actualizar email, dni, nombre completo y pictureUrl del usuario autenticado. La foto debe ser PNG.",
 					"security":    cookieSecurity(),
 					"requestBody": jsonBodyRef("#/components/schemas/ClientProfileUpdateRequest", true, clientProfileUpdateExample()),
 					"responses": gin.H{
@@ -305,9 +305,10 @@ func openAPISpec() gin.H {
 				},
 				"RegisterRequest": gin.H{
 					"type":     "object",
-					"required": []string{"username", "gmail", "dni", "password", "repeatPassword"},
+					"required": []string{"username", "fullName", "gmail", "dni", "password", "repeatPassword"},
 					"properties": gin.H{
 						"username":       gin.H{"type": "string", "example": "cliente01"},
+						"fullName":       gin.H{"type": "string", "example": "Cliente Demo"},
 						"gmail":          gin.H{"type": "string", "example": "cliente01@email.com"},
 						"dni":            gin.H{"type": "string", "example": "12345678"},
 						"password":       gin.H{"type": "string", "example": "secret123"},
@@ -321,6 +322,7 @@ func openAPISpec() gin.H {
 							"type": "object",
 							"properties": gin.H{
 								"username": gin.H{"type": "string", "example": "cliente01"},
+								"fullName": gin.H{"type": "string", "example": "Cliente Demo"},
 								"gmail":    gin.H{"type": "string", "example": "cliente01@email.com"},
 								"dni":      gin.H{"type": "string", "example": "12345678"},
 							},
@@ -346,7 +348,7 @@ func openAPISpec() gin.H {
 						"email":      gin.H{"type": "string", "example": "cliente01@email.com"},
 						"dni":        gin.H{"type": "string", "example": "12345678"},
 						"fullName":   gin.H{"type": "string", "example": "Cliente Demo"},
-						"pictureUrl": gin.H{"type": "string", "example": "https://example.com/avatar.png"},
+						"pictureUrl": gin.H{"type": "string", "example": "https://example.com/avatar.png", "description": "URL o data URL de una imagen PNG."},
 						"role":       gin.H{"type": "string", "example": "user"},
 					},
 				},
@@ -356,7 +358,7 @@ func openAPISpec() gin.H {
 						"email":      gin.H{"type": "string", "example": "cliente01@email.com"},
 						"dni":        gin.H{"type": "string", "example": "12345678"},
 						"fullName":   gin.H{"type": "string", "example": "Cliente Demo"},
-						"pictureUrl": gin.H{"type": "string", "example": "https://example.com/avatar.png"},
+						"pictureUrl": gin.H{"type": "string", "example": "https://example.com/avatar.png", "description": "Solo se acepta PNG."},
 					},
 				},
 				"Vehicle": gin.H{
@@ -612,6 +614,7 @@ func loginExample() gin.H {
 func registerExample() gin.H {
 	return gin.H{
 		"username":       "cliente01",
+		"fullName":       "Cliente Demo",
 		"gmail":          "cliente01@email.com",
 		"dni":            "12345678",
 		"password":       "secret123",

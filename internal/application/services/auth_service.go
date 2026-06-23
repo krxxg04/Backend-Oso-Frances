@@ -24,14 +24,7 @@ func NewAuthService(users repository.UserRepository, tokens *security.TokenManag
 }
 
 func (s *AuthService) Seed(ctx context.Context) error {
-	adminHash, _ := bcrypt.GenerateFromPassword([]byte("admin"), bcrypt.DefaultCost)
-	userHash, _ := bcrypt.GenerateFromPassword([]byte("user"), bcrypt.DefaultCost)
-	if err := s.users.SeedIfEmpty(ctx, []domain.User{
-		{Username: "admin", PasswordHash: string(adminHash), Role: "admin"},
-		{Username: "user", PasswordHash: string(userHash), Role: "user"},
-	}); err != nil {
-		return err
-	}
+	_ = ctx
 	return nil
 }
 
@@ -71,6 +64,9 @@ func (s *AuthService) UpdateProfile(ctx context.Context, username string, update
 		return domain.User{}, false, errors.New("validation_error")
 	}
 	if update.DNI != "" && len(update.DNI) != 8 {
+		return domain.User{}, false, errors.New("validation_error")
+	}
+	if update.PictureURL != "" && !isPNGPicture(update.PictureURL) {
 		return domain.User{}, false, errors.New("validation_error")
 	}
 	return s.users.UpdateProfileByUsername(ctx, username, update)
@@ -144,4 +140,9 @@ func (s *AuthService) Refresh(refresh string) (string, string, error) {
 		return "", "", err
 	}
 	return acc, ref, nil
+}
+
+func isPNGPicture(value string) bool {
+	normalized := strings.ToLower(strings.TrimSpace(value))
+	return strings.HasSuffix(normalized, ".png") || strings.HasPrefix(normalized, "data:image/png;base64,")
 }
