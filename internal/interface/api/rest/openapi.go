@@ -2,7 +2,7 @@ package rest
 
 import "github.com/gin-gonic/gin"
 
-func openAPISpec() gin.H {
+func openAPISpec(serverURL string) gin.H {
 	return gin.H{
 		"openapi": "3.0.3",
 		"info": gin.H{
@@ -14,7 +14,7 @@ func openAPISpec() gin.H {
 			},
 		},
 		"servers": []gin.H{
-			{"url": "http://localhost:8080", "description": "Desarrollo local"},
+			{"url": serverURL, "description": "Servidor actual"},
 		},
 		"tags": []gin.H{
 			{"name": "Auth", "description": "Registro, login, refresh de sesion y consulta de autenticacion."},

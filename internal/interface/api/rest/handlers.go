@@ -287,7 +287,7 @@ func (h *Handler) GetClientProfile(c *gin.Context) {
 }
 
 func (h *Handler) OpenAPI(c *gin.Context) {
-	c.JSON(http.StatusOK, openAPISpec())
+	c.JSON(http.StatusOK, openAPISpec(requestBaseURL(c)))
 }
 
 func (h *Handler) ListBankOptions(c *gin.Context) {
@@ -345,4 +345,20 @@ func queryFloat(c *gin.Context, key string) float64 {
 	}
 	n, _ := strconv.ParseFloat(raw, 64)
 	return n
+}
+
+func requestBaseURL(c *gin.Context) string {
+	scheme := c.Request.Header.Get("X-Forwarded-Proto")
+	if scheme == "" {
+		if c.Request.TLS != nil {
+			scheme = "https"
+		} else {
+			scheme = "http"
+		}
+	}
+	host := c.Request.Header.Get("X-Forwarded-Host")
+	if host == "" {
+		host = c.Request.Host
+	}
+	return scheme + "://" + host
 }
