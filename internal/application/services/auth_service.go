@@ -14,14 +14,13 @@ import (
 
 type AuthService struct {
 	users      repository.UserRepository
-	clientes   repository.ClienteRepository
 	tokens     *security.TokenManager
 	accessTTL  time.Duration
 	refreshTTL time.Duration
 }
 
-func NewAuthService(users repository.UserRepository, clientes repository.ClienteRepository, tokens *security.TokenManager, accessTTL, refreshTTL time.Duration) *AuthService {
-	return &AuthService{users: users, clientes: clientes, tokens: tokens, accessTTL: accessTTL, refreshTTL: refreshTTL}
+func NewAuthService(users repository.UserRepository, tokens *security.TokenManager, accessTTL, refreshTTL time.Duration) *AuthService {
+	return &AuthService{users: users, tokens: tokens, accessTTL: accessTTL, refreshTTL: refreshTTL}
 }
 
 func (s *AuthService) Seed(ctx context.Context) error {
@@ -33,8 +32,6 @@ func (s *AuthService) Seed(ctx context.Context) error {
 	}); err != nil {
 		return err
 	}
-	_, _ = s.clientes.GetOrCreateByNombre(ctx, "admin")
-	_, _ = s.clientes.GetOrCreateByNombre(ctx, "user")
 	return nil
 }
 
@@ -97,13 +94,6 @@ func (s *AuthService) RegisterProfile(ctx context.Context, user domain.User, pas
 		if err.Error() == "user_exists" {
 			return "", "", errors.New("conflict")
 		}
-		return "", "", err
-	}
-	clientName := user.FullName
-	if clientName == "" {
-		clientName = username
-	}
-	if _, err := s.clientes.GetOrCreateByNombre(ctx, clientName); err != nil {
 		return "", "", err
 	}
 	acc, err := s.tokens.Sign(username, "access", time.Now().Add(s.accessTTL))

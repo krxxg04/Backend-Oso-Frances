@@ -27,7 +27,7 @@ func TestVehicleAndSimulationHTTPFlow(t *testing.T) {
 		LoginMaxPerMinute: 10,
 	}
 	tokenManager := security.NewTokenManager(cfg.JWTSecret)
-	authSvc := services.NewAuthService(store, store, tokenManager, cfg.AccessTTL, cfg.RefreshTTL)
+	authSvc := services.NewAuthService(store, tokenManager, cfg.AccessTTL, cfg.RefreshTTL)
 	if err := authSvc.Seed(context.Background()); err != nil {
 		t.Fatalf("seed: %v", err)
 	}

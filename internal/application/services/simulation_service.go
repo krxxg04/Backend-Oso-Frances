@@ -12,12 +12,12 @@ import (
 )
 
 type SimulationService struct {
-	clientes repository.ClienteRepository
-	sims     repository.SimulacionRepository
+	users repository.UserRepository
+	sims  repository.SimulacionRepository
 }
 
-func NewSimulationService(clientes repository.ClienteRepository, sims repository.SimulacionRepository) *SimulationService {
-	return &SimulationService{clientes: clientes, sims: sims}
+func NewSimulationService(users repository.UserRepository, sims repository.SimulacionRepository) *SimulationService {
+	return &SimulationService{users: users, sims: sims}
 }
 
 func ListMockBanks() []domain.Banco {
@@ -45,12 +45,17 @@ func (s *SimulationService) CreateForUser(ctx context.Context, username string, 
 		return domain.Simulacion{}, errors.New("validation_error")
 	}
 	res := CalculateSimulation(in)
-	c, err := s.clientes.GetOrCreateByNombre(ctx, username)
+	user, ok, err := s.users.GetByUsername(ctx, username)
 	if err != nil {
 		return domain.Simulacion{}, err
 	}
-	in.NombreCliente = c.Nombre
-	return s.sims.Create(ctx, domain.Simulacion{ClienteID: c.ID, Input: in, Result: res})
+	if !ok {
+		return domain.Simulacion{}, errors.New("unauthorized")
+	}
+	if user.FullName != "" {
+		in.NombreCliente = user.FullName
+	}
+	return s.sims.Create(ctx, domain.Simulacion{UserID: user.ID, VehicleID: in.Vehiculo.ID, Input: in, Result: res})
 }
 
 func (s *SimulationService) ListByUser(ctx context.Context, username string) ([]domain.Simulacion, error) {
@@ -58,20 +63,21 @@ func (s *SimulationService) ListByUser(ctx context.Context, username string) ([]
 }
 
 func (s *SimulationService) ListByUserFiltered(ctx context.Context, username string, filter domain.SimulacionFilter) ([]domain.Simulacion, error) {
-	clientes, err := s.clientes.GetByNombre(ctx, username)
+	user, ok, err := s.users.GetByUsername(ctx, username)
 	if err != nil {
 		return nil, err
 	}
-	out := make([]domain.Simulacion, 0)
-	for _, c := range clientes {
-		items, err := s.sims.ListByClienteID(ctx, c.ID)
-		if err != nil {
-			return nil, err
-		}
-		for _, item := range items {
-			if matchesSimulationFilter(item, filter) {
-				out = append(out, item)
-			}
+	if !ok {
+		return nil, errors.New("unauthorized")
+	}
+	items, err := s.sims.ListByUserID(ctx, user.ID)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]domain.Simulacion, 0, len(items))
+	for _, item := range items {
+		if matchesSimulationFilter(item, filter) {
+			out = append(out, item)
 		}
 	}
 	return out, nil
@@ -86,16 +92,14 @@ func (s *SimulationService) GetByIDForUser(ctx context.Context, username, id str
 	if err != nil || !ok {
 		return sim, ok, err
 	}
-	clientes, err := s.clientes.GetByNombre(ctx, username)
+	user, ok, err := s.users.GetByUsername(ctx, username)
 	if err != nil {
 		return domain.Simulacion{}, false, err
 	}
-	for _, c := range clientes {
-		if c.ID == sim.ClienteID {
-			return sim, true, nil
-		}
+	if !ok {
+		return domain.Simulacion{}, false, nil
 	}
-	return domain.Simulacion{}, false, nil
+	return sim, sim.UserID == user.ID, nil
 }
 
 func ValidateSimulationInput(in domain.SimulacionInput) []domain.APIError {

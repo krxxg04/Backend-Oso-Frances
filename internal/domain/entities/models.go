@@ -18,15 +18,15 @@ const (
 )
 
 type Vehicle struct {
-	ID        string    `json:"id,omitempty"`
-	ClienteID string    `json:"clienteId,omitempty"`
-	Marca     string    `json:"marca,omitempty"`
-	Modelo    string    `json:"modelo,omitempty"`
-	Anio      int       `json:"anio,omitempty"`
-	Tipo      string    `json:"tipo,omitempty"`
-	Precio    float64   `json:"precio,omitempty"`
-	Moneda    Currency  `json:"moneda,omitempty"`
-	CreadoEn  time.Time `json:"creadoEn,omitempty"`
+	ID       string    `json:"id,omitempty"`
+	UserID   string    `json:"userId,omitempty"`
+	Marca    string    `json:"marca,omitempty"`
+	Modelo   string    `json:"modelo,omitempty"`
+	Anio     int       `json:"anio,omitempty"`
+	Tipo     string    `json:"tipo,omitempty"`
+	Precio   float64   `json:"precio,omitempty"`
+	Moneda   Currency  `json:"moneda,omitempty"`
+	CreadoEn time.Time `json:"creadoEn,omitempty"`
 }
 
 type Rate struct {
@@ -134,7 +134,8 @@ type SimulacionResult struct {
 
 type Simulacion struct {
 	ID        string           `json:"id"`
-	ClienteID string           `json:"clienteId"`
+	UserID    string           `json:"userId"`
+	VehicleID string           `json:"vehicleId,omitempty"`
 	CreadoEn  time.Time        `json:"creadoEn"`
 	Input     SimulacionInput  `json:"input"`
 	Result    SimulacionResult `json:"result"`
@@ -150,23 +151,15 @@ type SimulacionFilter struct {
 	Vehiculo   string   `json:"vehiculo,omitempty"`
 }
 
-type Cliente struct {
-	ID        string    `json:"id"`
-	Nombre    string    `json:"nombre"`
-	NombreKey string    `json:"nombreKey"`
-	DNI       string    `json:"dni,omitempty"`
-	Email     string    `json:"email,omitempty"`
-	Telefono  string    `json:"telefono,omitempty"`
-	Username  string    `json:"username,omitempty"`
-	CreadoEn  time.Time `json:"creadoEn"`
-}
-
 type User struct {
+	ID           string `json:"id"`
 	Username     string `json:"username"`
 	Email        string `json:"email,omitempty"`
 	DNI          string `json:"dni,omitempty"`
 	FullName     string `json:"fullName,omitempty"`
 	PasswordHash string `json:"-"`
+	GoogleID     string `json:"googleId,omitempty"`
+	PictureURL   string `json:"pictureUrl,omitempty"`
 	Role         string `json:"role"`
 }
 
