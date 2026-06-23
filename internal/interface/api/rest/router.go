@@ -14,6 +14,7 @@ func NewRouter(cfg config.Config, authSvc *services.AuthService, simSvc *service
 	r := gin.Default()
 	r.Use(corsMiddleware(cfg.FrontendOrigins))
 	h := NewHandler(cfg, authSvc, simSvc, vehicleSvc, NewLoginLimiter(cfg.LoginMaxPerMinute))
+	r.GET("/", func(c *gin.Context) { c.Redirect(http.StatusFound, "/swagger") })
 
 	api := r.Group("/api/v1")
 	api.GET("/bancos", h.ListBankOptions)
