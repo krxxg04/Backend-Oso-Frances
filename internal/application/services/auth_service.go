@@ -6,6 +6,8 @@ import (
 	"backend-of/internal/infrastructure/security"
 	"context"
 	"errors"
+	"fmt"
+	"regexp"
 	"strings"
 	"time"
 
@@ -142,7 +144,115 @@ func (s *AuthService) Refresh(refresh string) (string, string, error) {
 	return acc, ref, nil
 }
 
+func (s *AuthService) LoginWithGoogle(ctx context.Context, googleID, email, fullName, pictureURL string) (string, string, error) {
+	googleID = strings.TrimSpace(googleID)
+	email = strings.TrimSpace(strings.ToLower(email))
+	fullName = strings.TrimSpace(fullName)
+	pictureURL = strings.TrimSpace(pictureURL)
+
+	if googleID == "" || email == "" {
+		return "", "", errors.New("validation_error")
+	}
+
+	user, ok, err := s.users.GetByGoogleID(ctx, googleID)
+	if err != nil {
+		return "", "", err
+	}
+	if ok {
+		user, _, err = s.users.LinkGoogleAccount(ctx, user.Username, googleID, email, fullName, pictureURL)
+		if err != nil {
+			return "", "", err
+		}
+		return s.issueSessionTokens(user.Username)
+	}
+
+	user, ok, err = s.users.GetByEmail(ctx, email)
+	if err != nil {
+		return "", "", err
+	}
+	if ok {
+		user, _, err = s.users.LinkGoogleAccount(ctx, user.Username, googleID, email, fullName, pictureURL)
+		if err != nil {
+			return "", "", err
+		}
+		return s.issueSessionTokens(user.Username)
+	}
+
+	username, err := s.generateAvailableUsername(ctx, email, fullName)
+	if err != nil {
+		return "", "", err
+	}
+	newUser := domain.User{
+		Username:   username,
+		Email:      email,
+		FullName:   fullName,
+		GoogleID:   googleID,
+		PictureURL: pictureURL,
+		Role:       "user",
+	}
+	if err := s.users.CreateUser(ctx, newUser); err != nil {
+		if err.Error() == "user_exists" {
+			return "", "", errors.New("conflict")
+		}
+		return "", "", err
+	}
+	return s.issueSessionTokens(username)
+}
+
 func isPNGPicture(value string) bool {
 	normalized := strings.ToLower(strings.TrimSpace(value))
 	return strings.HasSuffix(normalized, ".png") || strings.HasPrefix(normalized, "data:image/png;base64,")
+}
+
+func (s *AuthService) issueSessionTokens(username string) (string, string, error) {
+	acc, err := s.tokens.Sign(username, "access", time.Now().Add(s.accessTTL))
+	if err != nil {
+		return "", "", err
+	}
+	ref, err := s.tokens.Sign(username, "refresh", time.Now().Add(s.refreshTTL))
+	if err != nil {
+		return "", "", err
+	}
+	return acc, ref, nil
+}
+
+var usernameSanitizer = regexp.MustCompile(`[^a-z0-9_]+`)
+
+func (s *AuthService) generateAvailableUsername(ctx context.Context, email, fullName string) (string, error) {
+	base := usernameBaseFromIdentity(email, fullName)
+	for i := 0; i < 100; i++ {
+		candidate := base
+		if i > 0 {
+			candidate = fmt.Sprintf("%s%d", base, i+1)
+		}
+		if len(candidate) < 3 {
+			candidate = candidate + "user"
+		}
+		_, exists, err := s.users.GetByUsername(ctx, candidate)
+		if err != nil {
+			return "", err
+		}
+		if !exists {
+			return candidate, nil
+		}
+	}
+	return "", errors.New("internal_error")
+}
+
+func usernameBaseFromIdentity(email, fullName string) string {
+	raw := fullName
+	if raw == "" {
+		raw, _, _ = strings.Cut(email, "@")
+	}
+	raw = strings.ToLower(strings.TrimSpace(raw))
+	raw = strings.ReplaceAll(raw, " ", "_")
+	raw = usernameSanitizer.ReplaceAllString(raw, "")
+	raw = strings.Trim(raw, "_")
+	if raw == "" {
+		return "user"
+	}
+	if len(raw) > 20 {
+		raw = raw[:20]
+	}
+	return raw
 }

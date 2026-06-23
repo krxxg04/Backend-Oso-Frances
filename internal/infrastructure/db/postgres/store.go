@@ -123,6 +123,30 @@ func (s *Store) GetByUsername(ctx context.Context, username string) (domain.User
 	return u, true, nil
 }
 
+func (s *Store) GetByEmail(ctx context.Context, email string) (domain.User, bool, error) {
+	var u domain.User
+	err := s.pool.QueryRow(ctx, `select id, username, coalesce(email,''), coalesce(dni,''), coalesce(full_name,''), coalesce(password_hash,''), coalesce(google_id,''), coalesce(picture_url,''), role from users where email=$1`, email).Scan(&u.ID, &u.Username, &u.Email, &u.DNI, &u.FullName, &u.PasswordHash, &u.GoogleID, &u.PictureURL, &u.Role)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return domain.User{}, false, nil
+		}
+		return domain.User{}, false, err
+	}
+	return u, true, nil
+}
+
+func (s *Store) GetByGoogleID(ctx context.Context, googleID string) (domain.User, bool, error) {
+	var u domain.User
+	err := s.pool.QueryRow(ctx, `select id, username, coalesce(email,''), coalesce(dni,''), coalesce(full_name,''), coalesce(password_hash,''), coalesce(google_id,''), coalesce(picture_url,''), role from users where google_id=$1`, googleID).Scan(&u.ID, &u.Username, &u.Email, &u.DNI, &u.FullName, &u.PasswordHash, &u.GoogleID, &u.PictureURL, &u.Role)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return domain.User{}, false, nil
+		}
+		return domain.User{}, false, err
+	}
+	return u, true, nil
+}
+
 func (s *Store) UpdateProfileByUsername(ctx context.Context, username string, update domain.UserProfileUpdate) (domain.User, bool, error) {
 	query := `
 update users
@@ -136,6 +160,30 @@ where username = $1
 returning id, username, coalesce(email,''), coalesce(dni,''), coalesce(full_name,''), coalesce(password_hash,''), coalesce(google_id,''), coalesce(picture_url,''), role`
 	var user domain.User
 	err := s.pool.QueryRow(ctx, query, username, nullableText(update.Email), nullableText(update.DNI), nullableText(update.FullName), nullableText(update.PictureURL)).
+		Scan(&user.ID, &user.Username, &user.Email, &user.DNI, &user.FullName, &user.PasswordHash, &user.GoogleID, &user.PictureURL, &user.Role)
+	if err != nil {
+		if err == pgx.ErrNoRows {
+			return domain.User{}, false, nil
+		}
+		return domain.User{}, false, err
+	}
+	return user, true, nil
+}
+
+func (s *Store) LinkGoogleAccount(ctx context.Context, username, googleID, email, fullName, pictureURL string) (domain.User, bool, error) {
+	query := `
+update users
+set
+  google_id = coalesce($2, google_id),
+  email = coalesce($3, email),
+  full_name = coalesce($4, full_name),
+  picture_url = coalesce($5, picture_url),
+  role = 'user',
+  updated_at = now()
+where username = $1
+returning id, username, coalesce(email,''), coalesce(dni,''), coalesce(full_name,''), coalesce(password_hash,''), coalesce(google_id,''), coalesce(picture_url,''), role`
+	var user domain.User
+	err := s.pool.QueryRow(ctx, query, username, nullableText(googleID), nullableText(email), nullableText(fullName), nullableText(pictureURL)).
 		Scan(&user.ID, &user.Username, &user.Email, &user.DNI, &user.FullName, &user.PasswordHash, &user.GoogleID, &user.PictureURL, &user.Role)
 	if err != nil {
 		if err == pgx.ErrNoRows {

@@ -174,6 +174,19 @@ func TestVehicleAndSimulationHTTPFlow(t *testing.T) {
 	if docs.Code != http.StatusOK {
 		t.Fatalf("expected docs ui ok, got %d", docs.Code)
 	}
+
+	googleCfg := cfg
+	googleCfg.GoogleClientID = "google-client-id"
+	googleCfg.GoogleRedirectURI = "http://localhost:8080/api/v1/auth/google/callback"
+	googleRouter := NewRouter(googleCfg, authSvc, simSvc, vehicleSvc)
+	googleLogin := performJSON(googleRouter, http.MethodGet, "/api/v1/auth/google/login", "", nil)
+	if googleLogin.Code != http.StatusFound {
+		t.Fatalf("expected google login redirect, got %d", googleLogin.Code)
+	}
+	location := googleLogin.Header().Get("Location")
+	if !bytes.Contains([]byte(location), []byte("accounts.google.com")) || !bytes.Contains([]byte(location), []byte("client_id=google-client-id")) {
+		t.Fatalf("unexpected google auth redirect: %s", location)
+	}
 }
 
 func registerAndCookies(t *testing.T, router http.Handler) []*http.Cookie {

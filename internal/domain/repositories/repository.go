@@ -8,9 +8,12 @@ import (
 
 type UserRepository interface {
 	GetByUsername(ctx context.Context, username string) (domain.User, bool, error)
+	GetByEmail(ctx context.Context, email string) (domain.User, bool, error)
+	GetByGoogleID(ctx context.Context, googleID string) (domain.User, bool, error)
 	CreateUser(ctx context.Context, user domain.User) error
 	SeedIfEmpty(ctx context.Context, users []domain.User) error
 	UpdateProfileByUsername(ctx context.Context, username string, update domain.UserProfileUpdate) (domain.User, bool, error)
+	LinkGoogleAccount(ctx context.Context, username, googleID, email, fullName, pictureURL string) (domain.User, bool, error)
 }
 
 type SimulacionRepository interface {
