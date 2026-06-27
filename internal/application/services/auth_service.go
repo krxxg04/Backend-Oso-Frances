@@ -107,6 +107,9 @@ func (s *AuthService) RegisterProfile(ctx context.Context, user domain.User, pas
 		if err.Error() == "user_exists" {
 			return "", "", errors.New("conflict")
 		}
+		if err.Error() == "email_exists" {
+			return "", "", errors.New("email_conflict")
+		}
 		return "", "", err
 	}
 	acc, err := s.tokens.Sign(username, "access", time.Now().Add(s.accessTTL))
