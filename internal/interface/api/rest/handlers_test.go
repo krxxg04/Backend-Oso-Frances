@@ -223,6 +223,47 @@ func TestRegisterDuplicateEmailReturnsConflict(t *testing.T) {
 	}
 }
 
+func TestSessionUsesRefreshTokenWhenAccessTokenIsMissing(t *testing.T) {
+	store, err := jsondb.NewStore(filepath.Join(t.TempDir(), "data.json"))
+	if err != nil {
+		t.Fatalf("store: %v", err)
+	}
+	cfg := config.Config{
+		JWTSecret:         "test-secret",
+		AccessTTL:         15 * time.Minute,
+		RefreshTTL:        time.Hour,
+		LoginMaxPerMinute: 10,
+		CookieSameSite:    "none",
+		CookieSecure:      true,
+	}
+	tokenManager := security.NewTokenManager(cfg.JWTSecret)
+	authSvc := services.NewAuthService(store, tokenManager, cfg.AccessTTL, cfg.RefreshTTL)
+	simSvc := services.NewSimulationService(store, store)
+	vehicleSvc := services.NewVehicleService(store, store)
+	router := NewRouter(cfg, authSvc, simSvc, vehicleSvc)
+
+	cookies := registerAndCookies(t, router)
+
+	var refreshCookie *http.Cookie
+	for _, cookie := range cookies {
+		if cookie.Name == "refresh_token" {
+			refreshCookie = cookie
+			break
+		}
+	}
+	if refreshCookie == nil {
+		t.Fatalf("expected refresh token cookie")
+	}
+
+	sessionResp := performJSON(router, http.MethodGet, "/api/v1/auth/session", "", []*http.Cookie{refreshCookie})
+	if sessionResp.Code != http.StatusOK {
+		t.Fatalf("expected session ok using refresh token, got %d: %s", sessionResp.Code, sessionResp.Body.String())
+	}
+	if len(sessionResp.Result().Cookies()) == 0 {
+		t.Fatalf("expected rotated auth cookies in response")
+	}
+}
+
 func registerAndCookies(t *testing.T, router http.Handler) []*http.Cookie {
 	t.Helper()
 	body := `{"username":"cliente01","fullName":"Cliente Demo","gmail":"cliente01@email.com","dni":"12345678","password":"secret123","repeatPassword":"secret123"}`

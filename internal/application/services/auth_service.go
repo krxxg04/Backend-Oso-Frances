@@ -147,6 +147,22 @@ func (s *AuthService) Refresh(refresh string) (string, string, error) {
 	return acc, ref, nil
 }
 
+func (s *AuthService) RefreshWithSubject(refresh string) (string, string, string, error) {
+	claims, err := s.tokens.Verify(refresh, "refresh")
+	if err != nil {
+		return "", "", "", errors.New("unauthorized")
+	}
+	acc, err := s.tokens.Sign(claims.Sub, "access", time.Now().Add(s.accessTTL))
+	if err != nil {
+		return "", "", "", err
+	}
+	ref, err := s.tokens.Sign(claims.Sub, "refresh", time.Now().Add(s.refreshTTL))
+	if err != nil {
+		return "", "", "", err
+	}
+	return claims.Sub, acc, ref, nil
+}
+
 func (s *AuthService) LoginWithGoogle(ctx context.Context, googleID, email, fullName, pictureURL string) (string, string, error) {
 	googleID = strings.TrimSpace(googleID)
 	email = strings.TrimSpace(strings.ToLower(email))
