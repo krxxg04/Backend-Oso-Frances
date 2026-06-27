@@ -116,6 +116,13 @@ func (s *Store) CreateUser(_ context.Context, user domain.User) error {
 	if _, exists := s.data.Users[user.Username]; exists {
 		return fmt.Errorf("user_exists")
 	}
+	if user.Email != "" {
+		for _, existing := range s.data.Users {
+			if existing.Email == user.Email {
+				return fmt.Errorf("email_exists")
+			}
+		}
+	}
 	if user.ID == "" {
 		user.ID = s.nextID("usr")
 	}

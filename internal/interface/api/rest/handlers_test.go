@@ -190,6 +190,39 @@ func TestVehicleAndSimulationHTTPFlow(t *testing.T) {
 	}
 }
 
+func TestRegisterDuplicateEmailReturnsConflict(t *testing.T) {
+	store, err := jsondb.NewStore(filepath.Join(t.TempDir(), "data.json"))
+	if err != nil {
+		t.Fatalf("store: %v", err)
+	}
+	cfg := config.Config{
+		JWTSecret:         "test-secret",
+		AccessTTL:         15 * time.Minute,
+		RefreshTTL:        time.Hour,
+		LoginMaxPerMinute: 10,
+	}
+	tokenManager := security.NewTokenManager(cfg.JWTSecret)
+	authSvc := services.NewAuthService(store, tokenManager, cfg.AccessTTL, cfg.RefreshTTL)
+	simSvc := services.NewSimulationService(store, store)
+	vehicleSvc := services.NewVehicleService(store, store)
+	router := NewRouter(cfg, authSvc, simSvc, vehicleSvc)
+
+	firstBody := `{"username":"cliente01","fullName":"Cliente Demo","gmail":"cliente01@email.com","dni":"12345678","password":"secret123","repeatPassword":"secret123"}`
+	firstResp := performJSON(router, http.MethodPost, "/api/v1/auth/register", firstBody, nil)
+	if firstResp.Code != http.StatusCreated {
+		t.Fatalf("first register got %d: %s", firstResp.Code, firstResp.Body.String())
+	}
+
+	duplicateEmailBody := `{"username":"cliente02","fullName":"Cliente Demo Dos","gmail":"cliente01@email.com","dni":"87654321","password":"secret123","repeatPassword":"secret123"}`
+	duplicateEmailResp := performJSON(router, http.MethodPost, "/api/v1/auth/register", duplicateEmailBody, nil)
+	if duplicateEmailResp.Code != http.StatusConflict {
+		t.Fatalf("expected duplicate email conflict, got %d: %s", duplicateEmailResp.Code, duplicateEmailResp.Body.String())
+	}
+	if !bytes.Contains(duplicateEmailResp.Body.Bytes(), []byte("el correo ya existe")) {
+		t.Fatalf("expected duplicate email message, got %s", duplicateEmailResp.Body.String())
+	}
+}
+
 func registerAndCookies(t *testing.T, router http.Handler) []*http.Cookie {
 	t.Helper()
 	body := `{"username":"cliente01","fullName":"Cliente Demo","gmail":"cliente01@email.com","dni":"12345678","password":"secret123","repeatPassword":"secret123"}`

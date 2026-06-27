@@ -4,10 +4,13 @@ import (
 	domain "backend-of/internal/domain/entities"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -107,8 +110,39 @@ func (s *Store) CreateUser(ctx context.Context, user domain.User) error {
 	if exists {
 		return fmt.Errorf("user_exists")
 	}
+	if user.Email != "" {
+		_, exists, err = s.GetByEmail(ctx, user.Email)
+		if err != nil {
+			return err
+		}
+		if exists {
+			return fmt.Errorf("email_exists")
+		}
+	}
 	_, err = s.pool.Exec(ctx, `insert into users (username, email, dni, full_name, password_hash, role) values ($1,$2,$3,$4,$5,$6)`, user.Username, nullableText(user.Email), nullableText(user.DNI), nullableText(user.FullName), user.PasswordHash, user.Role)
-	return err
+	if err != nil {
+		return mapCreateUserError(err)
+	}
+	return nil
+}
+
+func mapCreateUserError(err error) error {
+	var pgErr *pgconn.PgError
+	if !errors.As(err, &pgErr) {
+		return err
+	}
+	if pgErr.Code != "23505" {
+		return err
+	}
+	target := strings.ToLower(pgErr.ConstraintName + " " + pgErr.Detail)
+	switch {
+	case strings.Contains(target, "username"):
+		return fmt.Errorf("user_exists")
+	case strings.Contains(target, "email"):
+		return fmt.Errorf("email_exists")
+	default:
+		return err
+	}
 }
 
 func (s *Store) GetByUsername(ctx context.Context, username string) (domain.User, bool, error) {

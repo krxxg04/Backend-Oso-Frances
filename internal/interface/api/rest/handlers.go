@@ -85,6 +85,8 @@ func (h *Handler) Register(c *gin.Context) {
 			c.JSON(http.StatusBadRequest, domain.ErrorResponse{Error: domain.NewError("validation_error", "username minimo 3 chars, sin espacios; fullName requerido; password minimo 6 chars; DNI 8 digitos; email valido", "")})
 		case "conflict":
 			c.JSON(http.StatusConflict, domain.ErrorResponse{Error: domain.NewError("conflict", "el username ya existe", "username")})
+		case "email_conflict":
+			c.JSON(http.StatusConflict, domain.ErrorResponse{Error: domain.NewError("conflict", "el correo ya existe", "gmail")})
 		default:
 			c.JSON(http.StatusInternalServerError, domain.ErrorResponse{Error: domain.NewError("internal_error", "error registrando usuario", "")})
 		}
