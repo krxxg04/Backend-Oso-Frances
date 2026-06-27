@@ -26,20 +26,20 @@ func NewRouter(cfg config.Config, authSvc *services.AuthService, simSvc *service
 	authGroup.POST("/refresh", h.Refresh)
 	authGroup.GET("/google/login", h.GoogleLogin)
 	authGroup.GET("/google/callback", h.GoogleCallback)
-	authGroup.GET("/session", RequireAuth(authSvc), h.Session)
+	authGroup.GET("/session", RequireAuth(cfg, authSvc), h.Session)
 
-	simGroup := api.Group("/simulaciones", RequireAuth(authSvc))
+	simGroup := api.Group("/simulaciones", RequireAuth(cfg, authSvc))
 	simGroup.POST("", h.CreateSimulation)
 	simGroup.GET("", h.ListSimulations)
 	simGroup.GET("/:id", h.GetSimulationByID)
 
-	vehicleGroup := api.Group("/vehiculos", RequireAuth(authSvc))
+	vehicleGroup := api.Group("/vehiculos", RequireAuth(cfg, authSvc))
 	vehicleGroup.POST("", h.CreateVehicle)
 	vehicleGroup.GET("", h.ListVehicles)
 	vehicleGroup.GET("/:id", h.GetVehicleByID)
 	vehicleGroup.PUT("/:id", h.UpdateVehicle)
 
-	clientGroup := api.Group("/clientes", RequireAuth(authSvc))
+	clientGroup := api.Group("/clientes", RequireAuth(cfg, authSvc))
 	clientGroup.GET("/me", h.GetClientProfile)
 	clientGroup.PUT("/me", h.UpdateClientProfile)
 
