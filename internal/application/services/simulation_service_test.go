@@ -147,3 +147,25 @@ func TestValidateSimulationInputRejectsAmountBelow2000(t *testing.T) {
 		t.Fatalf("expected validation error for amount below 2000")
 	}
 }
+
+func TestValidateSimulationInputRejectsUnrealisticUpperLimits(t *testing.T) {
+	in := domain.SimulacionInput{
+		NombreCliente:          "Cliente Tope",
+		PrecioVehiculo:         600000,
+		Vehiculo:               domain.Vehicle{Marca: "Toyota", Modelo: "Land Cruiser", Precio: 600000, Moneda: domain.CurrencyPEN},
+		Moneda:                 domain.CurrencyPEN,
+		PorcentajeCuotaInicial: 10,
+		PlazoMeses:             36,
+		TasaEfectivaAnual:      12,
+		PeriodosPorAnio:        12,
+		PeriodosGracia:         7,
+		TipoGracia:             domain.GraceParcial,
+		CuotaFinalBalloon:      400000,
+		SeguroVehicularMensual: 6000,
+	}
+
+	errs := ValidateSimulationInput(in)
+	if len(errs) < 5 {
+		t.Fatalf("expected multiple validation errors for upper limits, got %+v", errs)
+	}
+}

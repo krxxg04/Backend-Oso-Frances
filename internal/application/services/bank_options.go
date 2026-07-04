@@ -6,7 +6,13 @@ import (
 	"strings"
 )
 
-const minimumVehicleAmount = 2000.0
+const (
+	minimumVehicleAmount           = 2000.0
+	maximumVehicleAmount           = 500000.0
+	maximumBalloonPercent          = 50.0
+	maximumVehicleInsuranceMonthly = 5000.0
+	maximumGracePeriods            = 6
+)
 
 func BankOptions() []domain.BankOption {
 	return []domain.BankOption{

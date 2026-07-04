@@ -136,8 +136,14 @@ func ValidateSimulationInput(in domain.SimulacionInput) []domain.APIError {
 	if in.PrecioVehiculo < minimumVehicleAmount {
 		errs = append(errs, domain.NewError("validation_error", "precioVehiculo debe ser >= 2000", "precioVehiculo"))
 	}
+	if in.PrecioVehiculo > maximumVehicleAmount {
+		errs = append(errs, domain.NewError("validation_error", "precioVehiculo debe ser <= 500000", "precioVehiculo"))
+	}
 	if in.Vehiculo.Precio < minimumVehicleAmount {
 		errs = append(errs, domain.NewError("validation_error", "vehiculo.precio debe ser >= 2000", "vehiculo.precio"))
+	}
+	if in.Vehiculo.Precio > maximumVehicleAmount {
+		errs = append(errs, domain.NewError("validation_error", "vehiculo.precio debe ser <= 500000", "vehiculo.precio"))
 	}
 	if in.PorcentajeCuotaInicial < 0 || in.PorcentajeCuotaInicial > 100 {
 		errs = append(errs, domain.NewError("validation_error", "porcentajeCuotaInicial debe estar entre 0 y 100", "porcentajeCuotaInicial"))
@@ -163,6 +169,9 @@ func ValidateSimulationInput(in domain.SimulacionInput) []domain.APIError {
 	if in.PeriodosGracia < 0 {
 		errs = append(errs, domain.NewError("validation_error", "periodosGracia debe ser >= 0", "periodosGracia"))
 	}
+	if in.PeriodosGracia > maximumGracePeriods {
+		errs = append(errs, domain.NewError("validation_error", "periodosGracia debe ser <= 6", "periodosGracia"))
+	}
 	if in.TipoGracia != "" && in.TipoGracia != domain.GraceNone && in.TipoGracia != domain.GraceTotal && in.TipoGracia != domain.GraceParcial {
 		errs = append(errs, domain.NewError("validation_error", "tipoGracia debe ser sin_gracia, total o parcial", "tipoGracia"))
 	}
@@ -175,11 +184,20 @@ func ValidateSimulationInput(in domain.SimulacionInput) []domain.APIError {
 	if in.ValorFinal < 0 {
 		errs = append(errs, domain.NewError("validation_error", "valorFinal debe ser >= 0", "valorFinal"))
 	}
+	if in.ValorFinal > in.PrecioVehiculo*(maximumBalloonPercent/100) {
+		errs = append(errs, domain.NewError("validation_error", "valorFinal no puede superar el 50% del precio del vehiculo", "valorFinal"))
+	}
 	if in.CuotaFinalBalloon < 0 {
 		errs = append(errs, domain.NewError("validation_error", "cuotaFinalBalloon debe ser >= 0", "cuotaFinalBalloon"))
 	}
+	if in.CuotaFinalBalloon > in.PrecioVehiculo*(maximumBalloonPercent/100) {
+		errs = append(errs, domain.NewError("validation_error", "cuotaFinalBalloon no puede superar el 50% del precio del vehiculo", "cuotaFinalBalloon"))
+	}
 	if in.SeguroVehicularMensual < 0 || in.SeguroDesgravamenAnual < 0 {
 		errs = append(errs, domain.NewError("validation_error", "los seguros deben ser >= 0", "seguros"))
+	}
+	if in.SeguroVehicularMensual > maximumVehicleInsuranceMonthly {
+		errs = append(errs, domain.NewError("validation_error", "seguroVehicularMensual debe ser <= 5000", "seguroVehicularMensual"))
 	}
 	if in.CostosFinanciados < 0 {
 		errs = append(errs, domain.NewError("validation_error", "costosFinanciados debe ser >= 0", "costosFinanciados"))

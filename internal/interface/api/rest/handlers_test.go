@@ -91,7 +91,7 @@ func TestVehicleAndSimulationHTTPFlow(t *testing.T) {
 	simulationBody := `{
 		"bancoId":"manual",
 		"moneda":"PEN",
-		"vehiculo":{"marca":"Toyota","modelo":"Yaris","anio":2025,"precio":8000},
+		"vehiculo":{"marca":"Toyota","modelo":"Yaris","anio":2025,"precio":80000},
 		"porcentajeCuotaInicial":20,
 		"plazoMeses":36,
 		"tipoTasa":"nominal",
@@ -261,6 +261,51 @@ func TestSessionUsesRefreshTokenWhenAccessTokenIsMissing(t *testing.T) {
 	}
 	if len(sessionResp.Result().Cookies()) == 0 {
 		t.Fatalf("expected rotated auth cookies in response")
+	}
+}
+
+func TestVehicleAndSimulationRejectUnrealisticLimits(t *testing.T) {
+	store, err := jsondb.NewStore(filepath.Join(t.TempDir(), "data.json"))
+	if err != nil {
+		t.Fatalf("store: %v", err)
+	}
+	cfg := config.Config{
+		JWTSecret:         "test-secret",
+		AccessTTL:         15 * time.Minute,
+		RefreshTTL:        time.Hour,
+		LoginMaxPerMinute: 10,
+	}
+	tokenManager := security.NewTokenManager(cfg.JWTSecret)
+	authSvc := services.NewAuthService(store, tokenManager, cfg.AccessTTL, cfg.RefreshTTL)
+	simSvc := services.NewSimulationService(store, store)
+	vehicleSvc := services.NewVehicleService(store, store)
+	router := NewRouter(cfg, authSvc, simSvc, vehicleSvc)
+
+	cookies := registerAndCookies(t, router)
+
+	vehicleBody := `{"marca":"Toyota","modelo":"Land Cruiser","anio":2025,"tipo":"suv","precio":600000,"moneda":"PEN"}`
+	vehicleResp := performJSON(router, http.MethodPost, "/api/v1/vehiculos", vehicleBody, cookies)
+	if vehicleResp.Code != http.StatusBadRequest {
+		t.Fatalf("expected vehicle upper-limit validation, got %d: %s", vehicleResp.Code, vehicleResp.Body.String())
+	}
+
+	simulationBody := `{
+		"bancoId":"manual",
+		"moneda":"PEN",
+		"vehiculo":{"marca":"Toyota","modelo":"Land Cruiser","anio":2025,"precio":400000},
+		"porcentajeCuotaInicial":20,
+		"plazoMeses":36,
+		"tipoTasa":"efectiva",
+		"tasaEfectivaAnual":18,
+		"periodosPorAnio":12,
+		"periodosGracia":7,
+		"tipoGracia":"parcial",
+		"cuotaFinalBalloon":250000,
+		"seguroVehicularMensual":6000
+	}`
+	simResp := performJSON(router, http.MethodPost, "/api/v1/simulaciones", simulationBody, cookies)
+	if simResp.Code != http.StatusBadRequest {
+		t.Fatalf("expected simulation upper-limit validation, got %d: %s", simResp.Code, simResp.Body.String())
 	}
 }
 

@@ -100,6 +100,9 @@ func ValidateVehicle(vehicle domain.Vehicle) []domain.APIError {
 	if vehicle.Precio < minimumVehicleAmount {
 		errs = append(errs, domain.NewError("validation_error", "precio debe ser >= 2000", "precio"))
 	}
+	if vehicle.Precio > maximumVehicleAmount {
+		errs = append(errs, domain.NewError("validation_error", "precio debe ser <= 500000", "precio"))
+	}
 	if vehicle.Moneda != domain.CurrencyPEN && vehicle.Moneda != domain.CurrencyUSD {
 		errs = append(errs, domain.NewError("validation_error", "moneda debe ser PEN o USD", "moneda"))
 	}
