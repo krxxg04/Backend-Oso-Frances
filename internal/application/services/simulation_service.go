@@ -2,7 +2,7 @@ package services
 
 import (
 	domain "backend-of/internal/domain/entities"
-	"backend-of/internal/domain/repositories"
+	repository "backend-of/internal/domain/repositories"
 	"backend-of/internal/domain/shared"
 	"context"
 	"errors"
@@ -248,44 +248,57 @@ func CalculateSimulation(in domain.SimulacionInput) domain.SimulacionResult {
 		}
 	}
 
+	// Cuota nivelada con la tasa combinada (interes + desgravamen). El seguro de
+	// desgravamen se calcula sobre el saldo inicial igual que el interes, por lo
+	// que la anualidad a tasa (i + d) produce una cuota total constante.
+	iCuota := i + seguroDesgravamenPeriodo
+
 	cuotaBase := 0.0
 	valorFinal := in.ValorFinal
 	if remaining > 0 {
-		if i == 0 {
+		if iCuota == 0 {
 			amortNoBalloon := saldo - valorFinal
 			if amortNoBalloon < 0 {
 				amortNoBalloon = 0
 			}
 			cuotaBase = amortNoBalloon / float64(remaining)
 		} else {
-			factor := (i * math.Pow(1+i, float64(remaining))) / (math.Pow(1+i, float64(remaining)) - 1)
-			cuotaBase = (saldo - (valorFinal / math.Pow(1+i, float64(remaining)))) * factor
+			factor := (iCuota * math.Pow(1+iCuota, float64(remaining))) / (math.Pow(1+iCuota, float64(remaining)) - 1)
+			cuotaBase = (saldo - (valorFinal / math.Pow(1+iCuota, float64(remaining)))) * factor
 		}
 	}
 
 	for k := 1; k <= remaining; k++ {
 		mes := gracia + k
 		saldoInicial := saldo
+
 		interes := saldo * i
-		cuota := cuotaBase
+		seguroVehicular := in.SeguroVehicularMensual
+		seguroDesgravamen := saldoInicial * seguroDesgravamenPeriodo
+		seguro := seguroVehicular + seguroDesgravamen
+
+		// cuotaBase ya incluye interes + amortizacion + desgravamen (sin el seguro vehicular).
+		cuotaNivelada := cuotaBase
 		if k == remaining {
-			cuota += valorFinal
+			cuotaNivelada += valorFinal
 		}
-		amort := cuota - interes
+
+		// El desgravamen se resta ADENTRO de la cuota, igual que el interes.
+		amort := cuotaNivelada - interes - seguroDesgravamen
 		if k == remaining || amort > saldo {
 			amort = saldo
-			cuota = interes + amort
 		}
 		saldo -= amort
 		if saldo < 1e-8 {
 			saldo = 0
 		}
-		seguroVehicular := in.SeguroVehicularMensual
-		seguroDesgravamen := saldoInicial * seguroDesgravamenPeriodo
-		seguro := seguroVehicular + seguroDesgravamen
+
+		// "Capital + Interes" (sin seguros); buildPago le suma el seguro encima.
+		cuotaCapitalInteres := interes + amort
+
 		totalIntereses += interes
 		totalSeguros += seguro
-		cron = append(cron, buildPago(mes, fechaInicio, hasFecha, saldoInicial, seguro, seguroVehicular, seguroDesgravamen, cuota, interes, amort, saldo, domain.GraceNone))
+		cron = append(cron, buildPago(mes, fechaInicio, hasFecha, saldoInicial, seguro, seguroVehicular, seguroDesgravamen, cuotaCapitalInteres, interes, amort, saldo, domain.GraceNone))
 	}
 
 	flows := make([]float64, 0, len(cron)+1)
@@ -309,7 +322,7 @@ func CalculateSimulation(in domain.SimulacionInput) domain.SimulacionResult {
 	resumen := domain.FinancialSummary{
 		MontoFinanciado:   shared.Round2(montoFinanciado),
 		CuotaInicial:      shared.Round2(cuotaInicial),
-		CuotaMensual:      shared.Round2(cuotaBase + in.SeguroVehicularMensual + montoFinanciado*seguroDesgravamenPeriodo),
+		CuotaMensual:      shared.Round2(cuotaBase + in.SeguroVehicularMensual),
 		CuotaFinalBalloon: shared.Round2(valorFinal),
 		TotalIntereses:    shared.Round2(totalIntereses),
 		TotalSeguros:      shared.Round2(totalSeguros),
