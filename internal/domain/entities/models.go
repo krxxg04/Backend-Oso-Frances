@@ -77,6 +77,7 @@ type Pago struct {
 	Amortizacion        float64   `json:"amortizacion"`
 	SaldoFinal          float64   `json:"saldoFinal"`
 	SaldoDeudor         float64   `json:"saldoDeudor"`
+	Flujo               float64   `json:"flujo"`
 	TipoGracia          GraceType `json:"tipoGracia,omitempty"`
 }
 
