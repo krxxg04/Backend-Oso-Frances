@@ -301,11 +301,13 @@ func CalculateSimulation(in domain.SimulacionInput) domain.SimulacionResult {
 		cron = append(cron, buildPago(mes, fechaInicio, hasFecha, saldoInicial, seguro, seguroVehicular, seguroDesgravamen, cuotaCapitalInteres, interes, amort, saldo, domain.GraceNone))
 	}
 
+	// Perspectiva del banco (acreedor): desembolsa el préstamo y recibe los flujos.
+	// VAN ≥ 0 porque los flujos incluyen seguros por encima de la tasa pura.
 	flows := make([]float64, 0, len(cron)+1)
-	flows = append(flows, montoNeto)
+	flows = append(flows, -montoFinanciado)
 	costoTotal := 0.0
 	for _, p := range cron {
-		flows = append(flows, -p.Cuota)
+		flows = append(flows, p.Flujo)
 		costoTotal += p.Cuota
 	}
 
@@ -483,6 +485,8 @@ func buildPago(mes int, fechaInicio time.Time, hasFecha bool, saldoInicial, segu
 		fecha = fechaPago.Format("2006-01-02")
 	}
 	cuotaTotal := cuotaCapitalInteres + seguro
+	// Flujo = toda la salida de caja: cuota (interes + amort + desgravamen) + seguro vehicular
+	flujo := cuotaTotal
 	return domain.Pago{
 		Mes:                 mes,
 		Periodo:             mes,
@@ -498,6 +502,7 @@ func buildPago(mes int, fechaInicio time.Time, hasFecha bool, saldoInicial, segu
 		Amortizacion:        shared.Round2(amortizacion),
 		SaldoFinal:          shared.Round2(saldoFinal),
 		SaldoDeudor:         shared.Round2(saldoFinal),
+		Flujo:               shared.Round2(flujo),
 		TipoGracia:          tipoGracia,
 	}
 }
